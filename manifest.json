@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "AI Screenshot Attacher",
+  "version": "0.1.0",
+  "description": "Attach the current clipboard screenshot to ChatGPT, Claude, or Gemini after explicit user action.",
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "AI Screenshot Attacher"
+  },
+  "options_page": "src/options/options.html",
+  "background": {
+    "service_worker": "src/background/serviceWorker.js",
+    "type": "module"
+  },
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "storage",
+    "clipboardRead",
+    "clipboardWrite",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*"
+  ],
+  "commands": {
+    "attach-to-default-ai": {
+      "suggested_key": {
+        "default": "Alt+Shift+A"
+      },
+      "description": "Attach clipboard screenshot to the default AI target"
+    },
+    "attach-to-chatgpt": {
+      "suggested_key": {
+        "default": "Alt+Shift+1"
+      },
+      "description": "Attach clipboard screenshot to ChatGPT"
+    },
+    "attach-to-claude": {
+      "suggested_key": {
+        "default": "Alt+Shift+2"
+      },
+      "description": "Attach clipboard screenshot to Claude"
+    },
+    "attach-to-gemini": {
+      "suggested_key": {
+        "default": "Alt+Shift+3"
+      },
+      "description": "Attach clipboard screenshot to Gemini"
+    }
+  }
+}
