@@ -1,11 +1,19 @@
 import type { ClipboardReadResult } from './types';
 import { ensureOffscreenDocument } from './offscreenClient';
+import { MAX_CLIPBOARD_IMAGE_BYTES } from '../shared/constants';
 
-export async function readClipboardImage(): Promise<ClipboardReadResult> {
+export interface ReadClipboardImageOptions {
+  usePasteFallback?: boolean;
+  maxBytes?: number;
+}
+
+export async function readClipboardImage(options: ReadClipboardImageOptions = {}): Promise<ClipboardReadResult> {
   try {
     await ensureOffscreenDocument();
     const response = (await chrome.runtime.sendMessage({
-      type: 'OFFSCREEN_READ_CLIPBOARD_IMAGE'
+      type: 'OFFSCREEN_READ_CLIPBOARD_IMAGE',
+      usePasteFallback: options.usePasteFallback ?? true,
+      maxBytes: options.maxBytes ?? MAX_CLIPBOARD_IMAGE_BYTES
     })) as ClipboardReadResult | undefined;
 
     return (

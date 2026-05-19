@@ -54,7 +54,7 @@ export const chatgptAdapter: AiTargetAdapter = {
       () => tryAttachViaDrop(file, selectors.dropTargets, selectors.attachmentPreviews)
     ]) {
       const result = await strategy();
-      if (result.ok) {
+      if (result.ok || result.confidence === 'unconfirmed') {
         return result;
       }
     }

@@ -1,12 +1,11 @@
-import { AUTO_DEDUPE_STATE_KEY, AUTO_MONITOR_INTERVAL_MS, AI_TARGETS, USER_MESSAGES } from '../shared/constants';
+import { AUTO_DEDUPE_STATE_KEY, AUTO_MONITOR_INTERVAL_MS, USER_MESSAGES } from '../shared/constants';
 import type { ClipboardImagePayload, OffscreenMonitorResult } from '../clipboard/types';
-import type { AutoMonitorStatus, OperationResult } from '../shared/messages';
+import type { AutoMonitorStatus } from '../shared/messages';
 import { getSettings } from '../shared/settings';
 import { ensureOffscreenDocument, hasOffscreenDocument } from '../clipboard/offscreenClient';
-import { writeClipboardImage } from '../clipboard/writeClipboardImage';
 import { logger } from '../shared/logger';
-import { countOpenTargetTabs, executeAttachRuntime, getBestOpenTargetTabForAuto, showToastOnPage } from './tabManager';
-import { recordOperationResult } from './commandHandler';
+import { countOpenTargetTabs } from './tabManager';
+import { enqueueAutoAttachment } from './attachQueue';
 
 let refreshTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 let refreshInFlight: Promise<AutoMonitorStatus> | undefined;
@@ -18,13 +17,7 @@ let currentStatus: AutoMonitorStatus = {
 };
 let lastHandledFingerprint: string | undefined;
 let lastHandledAt = 0;
-let autoAttachInFlight = false;
-let pendingAutoImage:
-  | {
-      image: ClipboardImagePayload;
-      fingerprint: string;
-    }
-  | undefined;
+let monitorPausedUntil = 0;
 
 export function scheduleAutoMonitorRefresh(): void {
   if (refreshTimer !== undefined) {
@@ -69,79 +62,21 @@ export async function handleAutoClipboardImage(image: ClipboardImagePayload, fin
     return;
   }
 
-  if (autoAttachInFlight) {
-    pendingAutoImage = { image, fingerprint };
-    return;
-  }
-
-  autoAttachInFlight = true;
   lastHandledFingerprint = fingerprint;
   lastHandledAt = Date.now();
   await persistAutoDedupeState(fingerprint, lastHandledAt);
 
-  try {
-    const selection = await getBestOpenTargetTabForAuto();
-    if (!selection?.tab.id) {
-      await refreshAutoMonitor();
-      return;
-    }
+  enqueueAutoAttachment(image, fingerprint);
+}
 
-    const target = AI_TARGETS[selection.targetId];
-    const attachResult = await executeAttachRuntime(selection.tab.id, {
-      targetId: selection.targetId,
-      image,
-      settings: {
-        showPageToast: settings.showPageToast,
-        writeBackOnFailure: settings.writeBackOnFailure,
-        debugLogs: settings.debugLogs
-      }
-    });
-
-    if (attachResult.ok) {
-      await recordOperationResult({
-        ok: true,
-        targetId: selection.targetId,
-        targetName: target.name,
-        method: attachResult.method,
-        message: USER_MESSAGES.attachSuccess,
-        trigger: 'auto',
-        at: new Date().toISOString()
-      });
-      return;
-    }
-
-    const fallbackMessage = settings.writeBackOnFailure ? USER_MESSAGES.attachFallback : USER_MESSAGES.attachFallbackNoWrite;
-    let finalMessage: string = fallbackMessage;
-
-    if (settings.writeBackOnFailure) {
-      const writeResult = await writeClipboardImage(image);
-      if (!writeResult.ok) {
-        finalMessage = `${fallbackMessage}（写回剪贴板失败，但原剪贴板通常仍保留截图。）`;
-      }
-    }
-
-    if (settings.showPageToast) {
-      await showToastOnPage(selection.tab.id, finalMessage, 'error');
-    }
-
-    await recordOperationResult({
-      ok: false,
-      targetId: selection.targetId,
-      targetName: target.name,
-      method: 'clipboard-fallback',
-      error: attachResult.error ?? 'AUTO_ATTACH_FAILED',
-      message: finalMessage,
-      trigger: 'auto',
-      at: new Date().toISOString()
-    });
-  } finally {
-    autoAttachInFlight = false;
-    const pending = pendingAutoImage;
-    pendingAutoImage = undefined;
-    if (pending && pending.fingerprint !== lastHandledFingerprint) {
-      await handleAutoClipboardImage(pending.image, pending.fingerprint);
-    }
-  }
+export function handleOffscreenAutoMonitorError(message: string): void {
+  monitorPausedUntil = Date.now() + 30000;
+  setStatus({
+    ...currentStatus,
+    active: false,
+    message: `自动粘贴模式已暂停：${message}`
+  });
+  globalThis.setTimeout(() => scheduleAutoMonitorRefresh(), 30000);
 }
 
 async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
@@ -149,6 +84,15 @@ async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
   logger.configure({ debug: settings.debugLogs });
 
   const targetCount = settings.autoAttachEnabled ? await countOpenTargetTabs() : 0;
+  if (settings.autoAttachEnabled && targetCount > 0 && Date.now() < monitorPausedUntil) {
+    return setStatus({
+      enabled: true,
+      active: false,
+      targetCount,
+      message: currentStatus.message
+    });
+  }
+
   if (!settings.autoAttachEnabled || targetCount === 0) {
     await stopOffscreenMonitorIfPresent();
     return setStatus({
@@ -162,6 +106,9 @@ async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
   }
 
   const monitorResult = await startOffscreenMonitor();
+  if (monitorResult.ok) {
+    monitorPausedUntil = 0;
+  }
   return setStatus({
     enabled: true,
     active: monitorResult.ok && monitorResult.active,

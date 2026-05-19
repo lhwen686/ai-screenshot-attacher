@@ -1,9 +1,18 @@
 export type AttachMethod = 'file-input' | 'paste-event' | 'drop-event' | 'clipboard-fallback';
+export type AttachConfidence = 'confirmed' | 'unconfirmed';
+
+export interface AttachEvidence {
+  kind: string;
+  message?: string;
+  selector?: string;
+}
 
 export interface AttachResult {
   ok: boolean;
   method?: AttachMethod;
   error?: string;
+  confidence?: AttachConfidence;
+  evidence?: AttachEvidence[];
 }
 
 export interface AiTargetAdapter {

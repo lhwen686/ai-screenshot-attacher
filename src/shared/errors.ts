@@ -2,6 +2,7 @@ export type ClipboardErrorType =
   | 'NO_PERMISSION'
   | 'NO_IMAGE_IN_CLIPBOARD'
   | 'UNSUPPORTED_IMAGE_TYPE'
+  | 'IMAGE_TOO_LARGE'
   | 'CLIPBOARD_READ_FAILED'
   | 'CLIPBOARD_WRITE_FAILED';
 
@@ -11,6 +12,7 @@ export type AttachErrorType =
   | 'TARGET_NOT_READY'
   | 'ADAPTER_NOT_FOUND'
   | 'AUTO_ATTACH_FAILED'
+  | 'ATTACHMENT_UNCONFIRMED'
   | 'SCRIPT_INJECTION_FAILED'
   | 'UNKNOWN_ERROR';
 
@@ -22,6 +24,8 @@ export function getErrorMessage(error: AttachErrorType): string {
       return '未检测到剪贴板图片，请先截图后再试。';
     case 'UNSUPPORTED_IMAGE_TYPE':
       return '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。';
+    case 'IMAGE_TOO_LARGE':
+      return '截图过大，请裁剪或压缩后重试。';
     case 'CLIPBOARD_READ_FAILED':
       return '读取剪贴板失败，请重新截图后再试。';
     case 'CLIPBOARD_WRITE_FAILED':
@@ -34,6 +38,8 @@ export function getErrorMessage(error: AttachErrorType): string {
       return '当前目标 AI 暂不支持自动附加。';
     case 'AUTO_ATTACH_FAILED':
       return '自动附加失败。';
+    case 'ATTACHMENT_UNCONFIRMED':
+      return '附件状态未确认。';
     case 'SCRIPT_INJECTION_FAILED':
       return '向目标页面注入附加脚本失败。';
     default:

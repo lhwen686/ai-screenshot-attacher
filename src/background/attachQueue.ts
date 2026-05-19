@@ -1,0 +1,292 @@
+import { readClipboardImage } from '../clipboard/readClipboardImage';
+import { writeClipboardImage } from '../clipboard/writeClipboardImage';
+import type { ClipboardImagePayload } from '../clipboard/types';
+import { AI_TARGETS, LAST_OPERATION_KEY, USER_MESSAGES, type TargetId } from '../shared/constants';
+import { getErrorMessage, type AttachErrorType } from '../shared/errors';
+import { logger } from '../shared/logger';
+import type { AttachQueueStatus, OperationResult } from '../shared/messages';
+import { getSettings, type AppSettings } from '../shared/settings';
+import { executeAttachRuntime, getBestOpenTargetTabForAuto, getOrCreateTargetTab, showToastOnActivePage, showToastOnPage } from './tabManager';
+
+interface ManualAttachJob {
+  kind: 'manual';
+  targetId?: TargetId;
+  resolve(result: OperationResult): void;
+}
+
+interface AutoAttachJob {
+  kind: 'auto';
+  image: ClipboardImagePayload;
+  fingerprint: string;
+}
+
+type AttachJob = ManualAttachJob | AutoAttachJob;
+
+const manualQueue: ManualAttachJob[] = [];
+let pendingAutoJob: AutoAttachJob | undefined;
+let processing = false;
+let currentJob: AttachJob | undefined;
+let lastQueuedAutoFingerprint: string | undefined;
+
+let queueStatus: AttachQueueStatus = {
+  busy: false,
+  pendingManualCount: 0,
+  hasPendingAuto: false,
+  message: '空闲',
+  at: new Date().toISOString()
+};
+
+export function enqueueManualAttachment(targetId?: TargetId): Promise<OperationResult> {
+  return new Promise((resolve) => {
+    manualQueue.push({ kind: 'manual', targetId, resolve });
+    emitQueueStatus('等待手动附加任务。');
+    void processQueue();
+  });
+}
+
+export function enqueueAutoAttachment(image: ClipboardImagePayload, fingerprint: string): void {
+  if (fingerprint === lastQueuedAutoFingerprint && (pendingAutoJob || currentJob?.kind === 'auto')) {
+    return;
+  }
+
+  lastQueuedAutoFingerprint = fingerprint;
+  pendingAutoJob = { kind: 'auto', image, fingerprint };
+  emitQueueStatus(processing ? '自动截图已排队。' : '等待自动附加任务。');
+  void processQueue();
+}
+
+export function getAttachQueueStatus(): AttachQueueStatus {
+  return queueStatus;
+}
+
+export async function getLastOperation(): Promise<OperationResult | undefined> {
+  const stored = await chrome.storage.local.get(LAST_OPERATION_KEY);
+  return stored[LAST_OPERATION_KEY] as OperationResult | undefined;
+}
+
+export async function recordOperationResult(result: OperationResult): Promise<void> {
+  await chrome.storage.local.set({ [LAST_OPERATION_KEY]: result });
+  await setActionFeedback(result);
+}
+
+async function processQueue(): Promise<void> {
+  if (processing) {
+    return;
+  }
+
+  processing = true;
+  try {
+    while (manualQueue.length > 0 || pendingAutoJob) {
+      currentJob = manualQueue.shift() ?? takePendingAutoJob();
+      emitQueueStatus(currentJob?.kind === 'manual' ? '正在手动附加截图。' : '正在自动附加截图。');
+
+      try {
+        if (currentJob?.kind === 'manual') {
+          const result = await runManualJob(currentJob);
+          currentJob.resolve(result);
+        } else if (currentJob?.kind === 'auto') {
+          await runAutoJob(currentJob);
+        }
+      } catch (error) {
+        logger.error('attach queue job failed', { error, kind: currentJob?.kind });
+        if (currentJob?.kind === 'manual') {
+          const result = operationFailure(currentJob.targetId ?? 'chatgpt', 'UNKNOWN_ERROR', '操作失败，请稍后重试。', 'manual');
+          await recordOperationResult(result);
+          currentJob.resolve(result);
+        }
+      } finally {
+        currentJob = undefined;
+        emitQueueStatus(pendingAutoJob ? '等待自动附加任务。' : '空闲');
+      }
+    }
+  } finally {
+    processing = false;
+    if (!pendingAutoJob && manualQueue.length === 0) {
+      lastQueuedAutoFingerprint = undefined;
+    }
+    emitQueueStatus('空闲');
+  }
+}
+
+function takePendingAutoJob(): AutoAttachJob | undefined {
+  const job = pendingAutoJob;
+  pendingAutoJob = undefined;
+  return job;
+}
+
+async function runManualJob(job: ManualAttachJob): Promise<OperationResult> {
+  const settings = await getConfiguredSettings();
+  const finalTargetId = job.targetId ?? settings.defaultTargetId;
+
+  logger.info('manual attach requested', { targetId: finalTargetId });
+
+  const clipboardResult = await readClipboardImage({ usePasteFallback: true });
+  if (!clipboardResult.ok) {
+    const result = operationFailure(finalTargetId, clipboardResult.error, clipboardResult.message, 'manual');
+    await recordOperationResult(result);
+    await showToastOnActivePage(result.message, 'error');
+    return result;
+  }
+
+  return attachImageToTarget({
+    image: clipboardResult.image,
+    settings,
+    targetId: finalTargetId,
+    trigger: 'manual'
+  });
+}
+
+async function runAutoJob(job: AutoAttachJob): Promise<void> {
+  const settings = await getConfiguredSettings();
+  if (!settings.autoAttachEnabled) {
+    return;
+  }
+
+  logger.info('auto attach requested', { fingerprint: job.fingerprint });
+  const selection = await getBestOpenTargetTabForAuto();
+  if (!selection?.tab.id) {
+    return;
+  }
+
+  await attachImageToTarget({
+    image: job.image,
+    settings,
+    tabId: selection.tab.id,
+    targetId: selection.targetId,
+    trigger: 'auto'
+  });
+}
+
+async function attachImageToTarget(options: {
+  image: ClipboardImagePayload;
+  settings: AppSettings;
+  targetId: TargetId;
+  trigger: 'manual' | 'auto';
+  tabId?: number;
+}): Promise<OperationResult> {
+  const target = AI_TARGETS[options.targetId];
+  let tabId = options.tabId;
+
+  try {
+    if (!tabId) {
+      const tab = await getOrCreateTargetTab(options.targetId, options.settings);
+      tabId = tab.id;
+    }
+
+    if (!tabId) {
+      throw new Error('TARGET_TAB_FAILED');
+    }
+
+    const attachResult = await executeAttachRuntime(tabId, {
+      targetId: options.targetId,
+      image: options.image,
+      settings: {
+        showPageToast: options.settings.showPageToast,
+        writeBackOnFailure: options.settings.writeBackOnFailure,
+        debugLogs: options.settings.debugLogs
+      }
+    });
+
+    if (attachResult.ok && attachResult.confidence !== 'unconfirmed') {
+      const result: OperationResult = {
+        ok: true,
+        targetId: options.targetId,
+        targetName: target.name,
+        method: attachResult.method,
+        message: USER_MESSAGES.attachSuccess,
+        trigger: options.trigger,
+        at: new Date().toISOString()
+      };
+      await recordOperationResult(result);
+      return result;
+    }
+
+    const finalMessage = await preserveClipboardFallback(options.image, options.settings);
+
+    if (options.settings.showPageToast) {
+      await showToastOnPage(tabId, finalMessage, 'error');
+    }
+
+    const result: OperationResult = {
+      ok: false,
+      targetId: options.targetId,
+      targetName: target.name,
+      method: 'clipboard-fallback',
+      error: attachResult.error ?? 'AUTO_ATTACH_FAILED',
+      message: finalMessage,
+      trigger: options.trigger,
+      at: new Date().toISOString()
+    };
+    await recordOperationResult(result);
+    return result;
+  } catch (error) {
+    logger.error('attach workflow failed', {
+      targetId: options.targetId,
+      error
+    });
+
+    const message = error instanceof Error && error.message === USER_MESSAGES.targetLoadFailed
+      ? USER_MESSAGES.targetLoadFailed
+      : getErrorMessage('TARGET_TAB_FAILED');
+
+    if (tabId && options.settings.showPageToast) {
+      await showToastOnPage(tabId, message, 'error');
+    }
+
+    const result = operationFailure(options.targetId, 'TARGET_TAB_FAILED', message, options.trigger);
+    await recordOperationResult(result);
+    return result;
+  }
+}
+
+async function preserveClipboardFallback(image: ClipboardImagePayload, settings: AppSettings): Promise<string> {
+  const fallbackMessage = settings.writeBackOnFailure ? USER_MESSAGES.attachFallback : USER_MESSAGES.attachFallbackNoWrite;
+  if (!settings.writeBackOnFailure) {
+    return fallbackMessage;
+  }
+
+  const writeResult = await writeClipboardImage(image);
+  return writeResult.ok ? fallbackMessage : `${fallbackMessage}（写回剪贴板失败，但原剪贴板通常仍保留截图。）`;
+}
+
+async function getConfiguredSettings(): Promise<AppSettings> {
+  const settings = await getSettings();
+  logger.configure({ debug: settings.debugLogs });
+  return settings;
+}
+
+async function setActionFeedback(result: OperationResult): Promise<void> {
+  await chrome.action.setBadgeText({ text: result.ok ? 'OK' : '!' });
+  await chrome.action.setBadgeBackgroundColor({ color: result.ok ? '#059669' : '#dc2626' });
+  await chrome.action.setTitle({ title: `AI Screenshot Attacher\n${result.message}` });
+}
+
+function operationFailure(
+  targetId: TargetId,
+  error: AttachErrorType | string,
+  message: string,
+  trigger: 'manual' | 'auto'
+): OperationResult {
+  return {
+    ok: false,
+    targetId,
+    targetName: AI_TARGETS[targetId].name,
+    error,
+    message,
+    trigger,
+    at: new Date().toISOString()
+  };
+}
+
+function emitQueueStatus(message: string): void {
+  queueStatus = {
+    busy: processing || manualQueue.length > 0 || Boolean(pendingAutoJob),
+    pendingManualCount: manualQueue.length,
+    hasPendingAuto: Boolean(pendingAutoJob),
+    currentTrigger: currentJob?.kind,
+    message,
+    at: new Date().toISOString()
+  };
+
+  void chrome.runtime.sendMessage({ type: 'ATTACH_QUEUE_STATUS_CHANGED', status: queueStatus }).catch(() => undefined);
+}
