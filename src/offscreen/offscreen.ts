@@ -164,7 +164,7 @@ async function stopAutoMonitor(): Promise<OffscreenMonitorResult> {
 
 async function readClipboardImageForAutoMonitor(): Promise<ClipboardReadResult> {
   return readClipboardImageInDocument({
-    usePasteFallback: false,
+    usePasteFallback: true,
     maxBytes: MAX_CLIPBOARD_IMAGE_BYTES
   });
 }

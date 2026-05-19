@@ -149,6 +149,14 @@ function getAutoStatusLabel(settings: AppSettings | null, status: AutoMonitorSta
     return '运行中';
   }
 
+  if (status?.message.includes('启动失败')) {
+    return '启动失败';
+  }
+
+  if (status?.message.includes('已暂停')) {
+    return '已暂停';
+  }
+
   return '等待 AI 页面';
 }
 

@@ -29,8 +29,8 @@ Manifest V3 Chrome / Edge extension MVP for attaching the current system clipboa
 - 手动模式只在用户明确触发后读取剪贴板。
 - Automatic mode is off by default. When enabled, it checks the clipboard only while at least one supported AI page is already open in the same Chrome profile.
 - 自动模式默认关闭。开启后，仅在同一 Chrome profile 中已有受支持 AI 页面打开时检测剪贴板。
-- Automatic monitoring uses the browser async Clipboard API only; if permission fails, it pauses briefly instead of repeatedly trying a paste-command fallback.
-- 自动监控只使用浏览器异步 Clipboard API；如果权限失败，会短暂停止重试，而不是反复尝试 paste-command fallback。
+- Automatic monitoring tries the browser async Clipboard API first, then uses a paste-command fallback when Chrome does not allow background async clipboard reads.
+- 自动监控会优先尝试浏览器异步 Clipboard API；如果 Chrome 不允许后台异步读取剪贴板，会退回到 paste-command fallback。
 - It does not automatically send AI messages.
 - 插件不会自动发送 AI 消息。
 - It does not read chat history.
