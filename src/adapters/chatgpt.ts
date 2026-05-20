@@ -5,11 +5,9 @@ import {
   GENERIC_FILE_INPUT_SELECTORS,
   GENERIC_TEXT_INPUT_SELECTORS,
   focusFirstInput,
-  shouldStopAttachmentStrategy,
   tryAttachViaDrop,
   tryAttachViaFileInput,
   tryAttachViaPaste,
-  tryPasteClipboardViaCommand,
   waitForAnyElement
 } from '../content/domUtils';
 
@@ -56,18 +54,12 @@ export const chatgptAdapter: AiTargetAdapter = {
       () => tryAttachViaDrop(file, selectors.dropTargets, selectors.attachmentPreviews)
     ]) {
       const result = await strategy();
-      if (shouldStopAttachmentStrategy(result)) {
+      if (result.ok) {
         return result;
       }
     }
 
     return { ok: false, method: 'clipboard-fallback', error: 'AUTO_ATTACH_FAILED' };
-  },
-
-  async pasteClipboardImage(): Promise<AttachResult> {
-    return tryPasteClipboardViaCommand(selectors.textInputs, selectors.attachmentPreviews, {
-      timeoutMs: 3500
-    });
   },
 
   async focusInput() {

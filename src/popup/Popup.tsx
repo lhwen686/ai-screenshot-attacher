@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './popup.css';
 import { AI_TARGETS, type TargetId } from '../shared/constants';
-import type { AttachQueueStatus, AutoMonitorStatus, OperationResult, UiMessage } from '../shared/messages';
+import type { AutoMonitorStatus, OperationResult, UiMessage } from '../shared/messages';
 import { getSettings, type AppSettings } from '../shared/settings';
 
 const quickTargets: TargetId[] = ['chatgpt', 'claude', 'gemini'];
@@ -11,7 +11,6 @@ function Popup() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [lastResult, setLastResult] = useState<OperationResult | undefined>();
   const [autoStatus, setAutoStatus] = useState<AutoMonitorStatus | null>(null);
-  const [queueStatus, setQueueStatus] = useState<AttachQueueStatus | null>(null);
   const [runningTarget, setRunningTarget] = useState<TargetId | 'default' | null>(null);
 
   useEffect(() => {
@@ -24,18 +23,10 @@ function Popup() {
         setAutoStatus(status);
       }
     });
-    chrome.runtime.sendMessage({ type: 'GET_ATTACH_QUEUE_STATUS' }).then((status?: AttachQueueStatus) => {
-      if (status) {
-        setQueueStatus(status);
-      }
-    });
 
     const onMessage = (message: UiMessage) => {
       if (message.type === 'AUTO_MONITOR_STATUS_CHANGED') {
         setAutoStatus(message.status);
-      }
-      if (message.type === 'ATTACH_QUEUE_STATUS_CHANGED') {
-        setQueueStatus(message.status);
       }
     };
     chrome.runtime.onMessage.addListener(onMessage);
@@ -98,12 +89,6 @@ function Popup() {
         <small>{autoStatus?.message ?? '打开设置可启用自动粘贴'}</small>
       </section>
 
-      <section className={`queue-status ${queueStatus?.busy ? 'is-busy' : ''}`}>
-        <span>任务状态</span>
-        <strong>{queueStatus?.busy ? getQueueStatusLabel(queueStatus) : '空闲'}</strong>
-        <small>{queueStatus?.message ?? '暂无任务'}</small>
-      </section>
-
       <button
         className="primary-button"
         disabled={runningTarget !== null}
@@ -149,35 +134,7 @@ function getAutoStatusLabel(settings: AppSettings | null, status: AutoMonitorSta
     return '运行中';
   }
 
-  if (status?.message.includes('启动失败')) {
-    return '启动失败';
-  }
-
-  if (status?.message.includes('已暂停')) {
-    return '已暂停';
-  }
-
   return '等待 AI 页面';
-}
-
-function getQueueStatusLabel(status: AttachQueueStatus): string {
-  if (status.currentTrigger === 'manual') {
-    return '手动处理中';
-  }
-
-  if (status.currentTrigger === 'auto') {
-    return '自动处理中';
-  }
-
-  if (status.pendingManualCount > 0) {
-    return '等待手动任务';
-  }
-
-  if (status.hasPendingAuto) {
-    return '等待自动任务';
-  }
-
-  return '处理中';
 }
 
 createRoot(document.getElementById('root')!).render(<Popup />);

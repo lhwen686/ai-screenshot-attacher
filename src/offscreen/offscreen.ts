@@ -1,6 +1,5 @@
 import {
   SUPPORTED_CLIPBOARD_IMAGE_TYPES,
-  type ClipboardReadSource,
   type ClipboardImagePayload,
   type ClipboardReadResult,
   type OffscreenMonitorResult,
@@ -8,9 +7,8 @@ import {
   type OffscreenClipboardMessage,
   type SupportedClipboardImageType
 } from '../clipboard/types';
-import { MAX_CLIPBOARD_IMAGE_BYTES, USER_MESSAGES } from '../shared/constants';
+import { USER_MESSAGES } from '../shared/constants';
 import type { AutoClipboardImageDetectedMessage } from '../shared/messages';
-import { validateClipboardImageSize } from '../clipboard/clipboardLimits';
 
 let monitorTimer: number | undefined;
 let lastMonitorFingerprint: string | undefined;
@@ -20,10 +18,7 @@ let monitorPollInFlight = false;
 
 chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sender, sendResponse) => {
   if (message.type === 'OFFSCREEN_READ_CLIPBOARD_IMAGE') {
-    readClipboardImageInDocument({
-      usePasteFallback: message.usePasteFallback ?? true,
-      maxBytes: message.maxBytes ?? MAX_CLIPBOARD_IMAGE_BYTES
-    }).then(sendResponse);
+    readClipboardImageInDocument().then(sendResponse);
     return true;
   }
 
@@ -45,12 +40,7 @@ chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sende
   return false;
 });
 
-async function readClipboardImageInDocument(
-  options: { usePasteFallback: boolean; maxBytes: number } = {
-    usePasteFallback: true,
-    maxBytes: MAX_CLIPBOARD_IMAGE_BYTES
-  }
-): Promise<ClipboardReadResult> {
+async function readClipboardImageInDocument(options: { usePasteFallback: boolean } = { usePasteFallback: true }): Promise<ClipboardReadResult> {
   let asyncClipboardError: ClipboardReadResult | undefined;
 
   try {
@@ -66,14 +56,13 @@ async function readClipboardImageInDocument(
         continue;
       }
 
-      return blobToClipboardPayload(await item.getType(supportedType), supportedType, 'async-clipboard', options.maxBytes);
+      return blobToClipboardPayload(await item.getType(supportedType), supportedType);
     }
 
     asyncClipboardError = {
       ok: false,
       error: foundUnsupportedImage ? 'UNSUPPORTED_IMAGE_TYPE' : 'NO_IMAGE_IN_CLIPBOARD',
-      message: foundUnsupportedImage ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。' : USER_MESSAGES.noClipboardImage,
-      source: 'async-clipboard'
+      message: foundUnsupportedImage ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。' : USER_MESSAGES.noClipboardImage
     };
   } catch (error) {
     const type = error instanceof DOMException && ['NotAllowedError', 'SecurityError'].includes(error.name)
@@ -83,8 +72,7 @@ async function readClipboardImageInDocument(
     asyncClipboardError = {
       ok: false,
       error: type,
-      message: type === 'NO_PERMISSION' ? '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。' : '读取剪贴板失败，请重新截图后再试。',
-      source: 'async-clipboard'
+      message: type === 'NO_PERMISSION' ? '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。' : '读取剪贴板失败，请重新截图后再试。'
     };
   }
 
@@ -96,7 +84,7 @@ async function readClipboardImageInDocument(
     };
   }
 
-  const pasteCommandResult = await readClipboardImageByPasteCommand(options.maxBytes);
+  const pasteCommandResult = await readClipboardImageByPasteCommand();
   if (pasteCommandResult.ok) {
     return pasteCommandResult;
   }
@@ -163,10 +151,7 @@ async function stopAutoMonitor(): Promise<OffscreenMonitorResult> {
 }
 
 async function readClipboardImageForAutoMonitor(): Promise<ClipboardReadResult> {
-  return readClipboardImageInDocument({
-    usePasteFallback: true,
-    maxBytes: MAX_CLIPBOARD_IMAGE_BYTES
-  });
+  return readClipboardImageInDocument({ usePasteFallback: true });
 }
 
 async function pollClipboardForNewImage(): Promise<void> {
@@ -180,14 +165,6 @@ async function pollClipboardForNewImage(): Promise<void> {
     if (!result.ok) {
       if (result.error === 'NO_IMAGE_IN_CLIPBOARD' || result.error === 'UNSUPPORTED_IMAGE_TYPE') {
         lastMonitorFingerprint = undefined;
-      }
-      if (result.error === 'NO_PERMISSION' || result.error === 'CLIPBOARD_READ_FAILED') {
-        await stopAutoMonitor();
-        void chrome.runtime.sendMessage({
-          type: 'OFFSCREEN_AUTO_MONITOR_ERROR',
-          error: result.error,
-          message: result.message
-        }).catch(() => undefined);
       }
       return;
     }
@@ -248,22 +225,14 @@ async function convertToPng(blob: Blob): Promise<Blob> {
 
 async function blobToClipboardPayload(
   sourceBlob: Blob,
-  sourceType: SupportedClipboardImageType,
-  source: ClipboardReadSource,
-  maxBytes: number
+  sourceType: SupportedClipboardImageType
 ): Promise<ClipboardReadResult> {
   const pngBlob = sourceType === 'image/png' ? sourceBlob : await convertToPng(sourceBlob);
-  const sizeError = validateClipboardImageSize(pngBlob.size, maxBytes, source);
-  if (sizeError) {
-    return sizeError;
-  }
-
   const dataUrl = await blobToDataUrl(pngBlob);
   const timestamp = Date.now();
 
   return {
     ok: true,
-    source,
     image: {
       dataUrl,
       mimeType: 'image/png',
@@ -274,7 +243,7 @@ async function blobToClipboardPayload(
   };
 }
 
-function readClipboardImageByPasteCommand(maxBytes: number): Promise<ClipboardReadResult> {
+function readClipboardImageByPasteCommand(): Promise<ClipboardReadResult> {
   return new Promise((resolve) => {
     const target = document.createElement('div');
     let settled = false;
@@ -307,8 +276,7 @@ function readClipboardImageByPasteCommand(maxBytes: number): Promise<ClipboardRe
       done({
         ok: false,
         error: foundUnsupportedImage ? 'UNSUPPORTED_IMAGE_TYPE' : 'NO_IMAGE_IN_CLIPBOARD',
-        message: foundUnsupportedImage ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。' : USER_MESSAGES.noClipboardImage,
-        source: 'paste-command'
+        message: foundUnsupportedImage ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。' : USER_MESSAGES.noClipboardImage
       });
     }, 800);
 
@@ -323,7 +291,7 @@ function readClipboardImageByPasteCommand(maxBytes: number): Promise<ClipboardRe
       );
 
       if (supportedFile) {
-        done(await blobToClipboardPayload(supportedFile, supportedFile.type as SupportedClipboardImageType, 'paste-command', maxBytes));
+        done(await blobToClipboardPayload(supportedFile, supportedFile.type as SupportedClipboardImageType));
         return;
       }
 
@@ -339,7 +307,7 @@ function readClipboardImageByPasteCommand(maxBytes: number): Promise<ClipboardRe
 
         const file = item.getAsFile();
         if (file) {
-          done(await blobToClipboardPayload(file, item.type as SupportedClipboardImageType, 'paste-command', maxBytes));
+          done(await blobToClipboardPayload(file, item.type as SupportedClipboardImageType));
           return;
         }
       }
@@ -347,8 +315,7 @@ function readClipboardImageByPasteCommand(maxBytes: number): Promise<ClipboardRe
       done({
         ok: false,
         error: foundUnsupportedImage ? 'UNSUPPORTED_IMAGE_TYPE' : 'NO_IMAGE_IN_CLIPBOARD',
-        message: foundUnsupportedImage ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。' : USER_MESSAGES.noClipboardImage,
-        source: 'paste-command'
+        message: foundUnsupportedImage ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。' : USER_MESSAGES.noClipboardImage
       });
     }
 
@@ -362,8 +329,7 @@ function readClipboardImageByPasteCommand(maxBytes: number): Promise<ClipboardRe
         done({
           ok: false,
           error: 'NO_PERMISSION',
-          message: '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。',
-          source: 'paste-command'
+          message: '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。'
         });
       }
     } catch {
@@ -371,8 +337,7 @@ function readClipboardImageByPasteCommand(maxBytes: number): Promise<ClipboardRe
       done({
         ok: false,
         error: 'NO_PERMISSION',
-        message: '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。',
-        source: 'paste-command'
+        message: '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。'
       });
     }
   });

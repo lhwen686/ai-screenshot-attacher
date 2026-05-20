@@ -6,7 +6,6 @@ import {
   GENERIC_TEXT_INPUT_SELECTORS,
   focusFirstInput,
   tryAttachViaPaste,
-  tryPasteClipboardViaCommand,
   waitForAnyElement
 } from '../content/domUtils';
 
@@ -54,19 +53,7 @@ export const claudeAdapter: AiTargetAdapter = {
 
   async attachImage(file: File): Promise<AttachResult> {
     const result = await tryAttachViaPaste(file, selectors.textInputs, selectors.attachmentPreviews);
-    return result.ok
-      ? result
-      : {
-          ...result,
-          method: result.method ?? 'clipboard-fallback',
-          error: result.error ?? 'AUTO_ATTACH_FAILED'
-        };
-  },
-
-  async pasteClipboardImage(): Promise<AttachResult> {
-    return tryPasteClipboardViaCommand(selectors.textInputs, selectors.attachmentPreviews, {
-      timeoutMs: 3500
-    });
+    return result.ok ? result : { ok: false, method: 'clipboard-fallback', error: result.error ?? 'AUTO_ATTACH_FAILED' };
   },
 
   async focusInput() {

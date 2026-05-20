@@ -73,8 +73,7 @@ h1 {
   font-size: 14px;
 }
 
-.auto-status,
-.queue-status {
+.auto-status {
   display: grid;
   gap: 4px;
   padding: 12px;
@@ -83,21 +82,18 @@ h1 {
   background: #ffffff;
 }
 
-.auto-status span,
-.queue-status span {
+.auto-status span {
   color: #64748b;
   font-size: 12px;
   font-weight: 700;
 }
 
-.auto-status strong,
-.queue-status strong {
+.auto-status strong {
   color: #111827;
   font-size: 14px;
 }
 
-.auto-status small,
-.queue-status small {
+.auto-status small {
   color: #64748b;
   font-size: 12px;
   line-height: 1.4;
@@ -111,11 +107,6 @@ h1 {
 .auto-status.is-waiting {
   border-color: #fde68a;
   background: #fffbeb;
-}
-
-.queue-status.is-busy {
-  border-color: #bfdbfe;
-  background: #eff6ff;
 }
 
 .primary-button,

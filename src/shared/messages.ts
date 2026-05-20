@@ -20,15 +20,6 @@ export interface AutoMonitorStatus {
   message: string;
 }
 
-export interface AttachQueueStatus {
-  busy: boolean;
-  pendingManualCount: number;
-  hasPendingAuto: boolean;
-  currentTrigger?: 'manual' | 'auto';
-  message: string;
-  at: string;
-}
-
 export interface AttachRuntimePayload {
   targetId: TargetId;
   image: ClipboardImagePayload;
@@ -41,7 +32,6 @@ export interface AttachRuntimePayload {
 
 export interface AttachRuntimeGlobal {
   run(payload: AttachRuntimePayload): Promise<AttachResult>;
-  pasteFromClipboard(payload: AttachRuntimePayload): Promise<AttachResult>;
 }
 
 export type PopupAttachMessage = {
@@ -57,25 +47,10 @@ export type GetAutoMonitorStatusMessage = {
   type: 'GET_AUTO_MONITOR_STATUS';
 };
 
-export type GetAttachQueueStatusMessage = {
-  type: 'GET_ATTACH_QUEUE_STATUS';
-};
-
-export type AttachQueueStatusChangedMessage = {
-  type: 'ATTACH_QUEUE_STATUS_CHANGED';
-  status: AttachQueueStatus;
-};
-
 export type AutoClipboardImageDetectedMessage = {
   type: 'AUTO_CLIPBOARD_IMAGE_DETECTED';
   image: ClipboardImagePayload;
   fingerprint: string;
-};
-
-export type OffscreenAutoMonitorErrorMessage = {
-  type: 'OFFSCREEN_AUTO_MONITOR_ERROR';
-  error: string;
-  message: string;
 };
 
 export type AutoMonitorStatusChangedMessage = {
@@ -87,8 +62,5 @@ export type UiMessage =
   | PopupAttachMessage
   | GetLastOperationMessage
   | GetAutoMonitorStatusMessage
-  | GetAttachQueueStatusMessage
-  | AttachQueueStatusChangedMessage
   | AutoClipboardImageDetectedMessage
-  | OffscreenAutoMonitorErrorMessage
   | AutoMonitorStatusChangedMessage;

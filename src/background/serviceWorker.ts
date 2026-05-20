@@ -1,12 +1,10 @@
 import type { UiMessage } from '../shared/messages';
-import { attachToTarget, handleCommand } from './commandHandler';
-import { getAttachQueueStatus, getLastOperation } from './attachQueue';
+import { attachToTarget, getLastOperation, handleCommand } from './commandHandler';
 import { getSettings } from '../shared/settings';
 import { logger } from '../shared/logger';
 import {
   getAutoMonitorStatus,
   handleAutoClipboardImage,
-  handleOffscreenAutoMonitorError,
   refreshAutoMonitor,
   scheduleAutoMonitorRefresh
 } from './autoMonitor';
@@ -39,11 +37,6 @@ chrome.runtime.onMessage.addListener((message: UiMessage, _sender, sendResponse)
     return true;
   }
 
-  if (message?.type === 'GET_ATTACH_QUEUE_STATUS') {
-    sendResponse(getAttachQueueStatus());
-    return true;
-  }
-
   if (message?.type === 'AUTO_CLIPBOARD_IMAGE_DETECTED') {
     handleAutoClipboardImage(message.image, message.fingerprint).then(() => {
       sendResponse({ ok: true });
@@ -53,12 +46,6 @@ chrome.runtime.onMessage.addListener((message: UiMessage, _sender, sendResponse)
 
   if (message?.type === 'AUTO_MONITOR_STATUS_CHANGED') {
     sendResponse(getAutoMonitorStatus());
-    return true;
-  }
-
-  if (message?.type === 'OFFSCREEN_AUTO_MONITOR_ERROR') {
-    handleOffscreenAutoMonitorError(message.message);
-    sendResponse({ ok: true });
     return true;
   }
 

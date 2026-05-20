@@ -29,8 +29,6 @@ Manifest V3 Chrome / Edge extension MVP for attaching the current system clipboa
 - 手动模式只在用户明确触发后读取剪贴板。
 - Automatic mode is off by default. When enabled, it checks the clipboard only while at least one supported AI page is already open in the same Chrome profile.
 - 自动模式默认关闭。开启后，仅在同一 Chrome profile 中已有受支持 AI 页面打开时检测剪贴板。
-- Automatic monitoring tries the browser async Clipboard API first, then uses a paste-command fallback when Chrome does not allow background async clipboard reads.
-- 自动监控会优先尝试浏览器异步 Clipboard API；如果 Chrome 不允许后台异步读取剪贴板，会退回到 paste-command fallback。
 - It does not automatically send AI messages.
 - 插件不会自动发送 AI 消息。
 - It does not read chat history.
@@ -83,16 +81,6 @@ npm run build
 The unpacked extension output is generated in `dist/`.
 
 构建后的可加载扩展目录会生成在 `dist/`。
-
-## Test / 测试
-
-```bash
-npm test
-```
-
-Unit tests cover attachment success evidence, unconfirmed progress states, clipboard size limits, and queue behavior.
-
-单元测试覆盖附件成功证据、未确认的上传进度状态、剪贴板图片大小限制和队列行为。
 
 ## Load in Chrome / 在 Chrome 中加载
 
@@ -218,8 +206,6 @@ Open the extension options page to change:
 - 一些网站可能阻止合成 paste 或 drop 事件。此时插件会退回到保留剪贴板截图并聚焦输入框。
 - The browser may require clipboard permission before `navigator.clipboard.read()` works.
 - 浏览器可能要求授予剪贴板权限后，`navigator.clipboard.read()` 才能工作。
-- Screenshots larger than 10 MB are rejected before attachment to avoid large extension messages and memory pressure.
-- 超过 10 MB 的截图会在附加前被拒绝，以避免过大的扩展消息和内存压力。
 - Automatic mode does not open AI pages. It only attaches to already open ChatGPT, Claude, or Gemini pages.
 - 自动模式不会打开 AI 页面，只会附加到已经打开的 ChatGPT、Claude 或 Gemini。
 - The extension does not bypass login, account checks, cookies, or site upload limits.

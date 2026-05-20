@@ -39,11 +39,9 @@ export const TARGET_IDS = Object.keys(AI_TARGETS) as TargetId[];
 export const OFFSCREEN_DOCUMENT_PATH = 'src/offscreen/offscreen.html';
 export const ATTACH_RUNTIME_FILE = 'src/content/attachRuntime.js';
 export const AUTO_MONITOR_INTERVAL_MS = 1500;
-export const MAX_CLIPBOARD_IMAGE_BYTES = 10 * 1024 * 1024;
 
 export const USER_MESSAGES = {
   noClipboardImage: '未检测到剪贴板图片，请先截图后再试。',
-  imageTooLarge: '截图过大，请裁剪或压缩到 10 MB 以内后重试。',
   attachSuccess: '截图已附加，请自行输入问题并发送。',
   attachFallback: '自动附加失败，已保留截图到剪贴板，请手动 Ctrl+V / Cmd+V。',
   attachFallbackNoWrite: '自动附加失败，请手动 Ctrl+V / Cmd+V。',

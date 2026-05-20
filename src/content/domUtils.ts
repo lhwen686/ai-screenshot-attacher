@@ -1,4 +1,4 @@
-import type { AttachEvidence, AttachMethod, AttachResult } from '../adapters/types';
+import type { AttachResult } from '../adapters/types';
 import type { ClipboardImagePayload } from '../clipboard/types';
 
 export const GENERIC_FILE_INPUT_SELECTORS = [
@@ -45,49 +45,10 @@ export const GENERIC_ATTACHMENT_PREVIEW_SELECTORS = [
   'button[aria-label*="删除" i]'
 ];
 
-export const DEFAULT_ATTACHMENT_FAILURE_TEXT_PATTERNS = [
-  /文件中没有内容/,
-  /empty file/i,
-  /file is empty/i,
-  /upload failed/i,
-  /failed to upload/i,
-  /couldn['’]?t upload/i,
-  /unable to upload/i,
-  /上传失败/,
-  /无法上传/,
-  /权限/,
-  /permission/i
-];
-
-export const DEFAULT_ATTACHMENT_SUCCESS_TEXT_PATTERNS = [
-  /upload complete/i,
-  /uploaded/i,
-  /attached/i,
-  /上传完成/,
-  /已上传/,
-  /已附加/
-];
-
-export const DEFAULT_ATTACHMENT_PROGRESS_TEXT_PATTERNS = [
-  /uploading/i,
-  /processing/i,
-  /上传中/,
-  /正在上传/,
-  /处理中/
-];
-
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
-}
-
-export function shouldStopAttachmentStrategy(result: AttachResult): boolean {
-  if (result.ok || result.confidence === 'confirmed') {
-    return true;
-  }
-
-  return result.error === 'ATTACHMENT_UNCONFIRMED';
 }
 
 export function dataUrlToFile(image: ClipboardImagePayload): File {
@@ -180,6 +141,25 @@ export function snapshotAttachmentCount(selectors: string[]): number {
   return Array.from(elements).filter(isVisible).length;
 }
 
+export async function waitForAttachmentChange(
+  selectors: string[],
+  beforeCount: number,
+  timeoutMs = 3000,
+  file?: File
+): Promise<boolean> {
+  const startedAt = Date.now();
+  const hadFileName = file ? documentBodyIncludes(file.name) : false;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (snapshotAttachmentCount(selectors) > beforeCount || (file && !hadFileName && documentBodyIncludes(file.name))) {
+      return true;
+    }
+    await sleep(250);
+  }
+
+  return false;
+}
+
 export async function tryAttachViaFileInput(
   file: File,
   inputSelectors: string[],
@@ -189,30 +169,24 @@ export async function tryAttachViaFileInput(
     (input) => input.type === 'file' && acceptsImage(input)
   );
 
-  let lastResult: AttachResult | undefined;
   for (const input of inputs) {
     try {
-      const root = findAttachmentObservationRoot(input);
-      const beforeSnapshot = snapshotAttachmentState(previewSelectors, root, file);
+      const beforeCount = snapshotAttachmentCount(previewSelectors);
       const dataTransfer = new DataTransfer();
       dataTransfer.items.add(file);
       input.files = dataTransfer.files;
       input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
       input.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
 
-      const result = await waitForAttachmentOutcome('file-input', previewSelectors, beforeSnapshot, root, file, {
-        timeoutMs: 5000
-      });
-      lastResult = result;
-      if (shouldStopAttachmentStrategy(result)) {
-        return result;
+      if (await waitForAttachmentChange(previewSelectors, beforeCount, 5000, file)) {
+        return { ok: true, method: 'file-input' };
       }
     } catch {
       continue;
     }
   }
 
-  return lastResult ?? { ok: false, method: 'file-input', error: 'FILE_INPUT_ATTACH_FAILED' };
+  return { ok: false, method: 'file-input', error: 'FILE_INPUT_ATTACH_FAILED' };
 }
 
 export async function tryAttachViaPaste(
@@ -226,8 +200,7 @@ export async function tryAttachViaPaste(
   }
 
   try {
-    const root = findAttachmentObservationRoot(target);
-    const beforeSnapshot = snapshotAttachmentState(previewSelectors, root, file);
+    const beforeCount = snapshotAttachmentCount(previewSelectors);
     target.focus({ preventScroll: false });
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
@@ -241,19 +214,21 @@ export async function tryAttachViaPaste(
     });
     target.dispatchEvent(event);
 
-    return waitForAttachmentOutcome('paste-event', previewSelectors, beforeSnapshot, root, file, {
-      timeoutMs: 3000
-    });
+    if (await waitForAttachmentChange(previewSelectors, beforeCount, 3000, file)) {
+      return { ok: true, method: 'paste-event' };
+    }
   } catch {
     return { ok: false, method: 'paste-event', error: 'PASTE_EVENT_FAILED' };
   }
+
+  return { ok: false, method: 'paste-event', error: 'PASTE_EVENT_NO_PREVIEW' };
 }
 
 export async function tryAttachViaPasteRelaxed(
   file: File,
   inputSelectors: string[],
   previewSelectors: string[],
-  options: { timeoutMs?: number; successTextPatterns?: RegExp[]; progressTextPatterns?: RegExp[]; failureTextPatterns?: RegExp[] } = {}
+  options: { timeoutMs?: number; successTextPatterns?: RegExp[] } = {}
 ): Promise<AttachResult> {
   const target = findFirstCandidate<HTMLElement>(inputSelectors, { visibleOnly: true });
   if (!target) {
@@ -261,8 +236,7 @@ export async function tryAttachViaPasteRelaxed(
   }
 
   try {
-    const root = findAttachmentObservationRoot(target);
-    const beforeSnapshot = snapshotAttachmentState(previewSelectors, root, file);
+    const beforeSnapshot = snapshotAttachmentState(previewSelectors);
     target.focus({ preventScroll: false });
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
@@ -277,45 +251,14 @@ export async function tryAttachViaPasteRelaxed(
     });
     target.dispatchEvent(event);
 
-    return waitForAttachmentOutcome('paste-event', previewSelectors, beforeSnapshot, root, file, {
-      timeoutMs: options.timeoutMs ?? 8000,
-      successTextPatterns: options.successTextPatterns,
-      progressTextPatterns: options.progressTextPatterns,
-      failureTextPatterns: options.failureTextPatterns
-    });
+    if (await waitForRelaxedAttachmentSuccess(previewSelectors, beforeSnapshot, options.timeoutMs ?? 8000, options.successTextPatterns)) {
+      return { ok: true, method: 'paste-event' };
+    }
   } catch {
     return { ok: false, method: 'paste-event', error: 'PASTE_EVENT_FAILED' };
   }
-}
 
-export async function tryPasteClipboardViaCommand(
-  inputSelectors: string[],
-  previewSelectors: string[],
-  options: { timeoutMs?: number; successTextPatterns?: RegExp[]; progressTextPatterns?: RegExp[]; failureTextPatterns?: RegExp[] } = {}
-): Promise<AttachResult> {
-  const target = findFirstCandidate<HTMLElement>(inputSelectors, { visibleOnly: true });
-  if (!target) {
-    return { ok: false, method: 'paste-command', error: 'INPUT_NOT_FOUND' };
-  }
-
-  try {
-    const root = findAttachmentObservationRoot(target);
-    const beforeSnapshot = snapshotAttachmentState(previewSelectors, root);
-    target.focus({ preventScroll: false });
-    const didPaste = document.execCommand('paste');
-    if (!didPaste) {
-      return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_REJECTED' };
-    }
-
-    return waitForAttachmentOutcome('paste-command', previewSelectors, beforeSnapshot, root, undefined, {
-      timeoutMs: options.timeoutMs ?? 5000,
-      successTextPatterns: options.successTextPatterns,
-      progressTextPatterns: options.progressTextPatterns,
-      failureTextPatterns: options.failureTextPatterns
-    });
-  } catch {
-    return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_FAILED' };
-  }
+  return { ok: false, method: 'paste-event', error: 'PASTE_EVENT_NO_PREVIEW' };
 }
 
 export async function tryAttachViaDrop(
@@ -329,8 +272,7 @@ export async function tryAttachViaDrop(
   }
 
   try {
-    const root = findAttachmentObservationRoot(target);
-    const beforeSnapshot = snapshotAttachmentState(previewSelectors, root, file);
+    const beforeCount = snapshotAttachmentCount(previewSelectors);
     target.focus({ preventScroll: false });
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
@@ -349,12 +291,14 @@ export async function tryAttachViaDrop(
       await sleep(80);
     }
 
-    return waitForAttachmentOutcome('drop-event', previewSelectors, beforeSnapshot, root, file, {
-      timeoutMs: 5000
-    });
+    if (await waitForAttachmentChange(previewSelectors, beforeCount, 5000, file)) {
+      return { ok: true, method: 'drop-event' };
+    }
   } catch {
     return { ok: false, method: 'drop-event', error: 'DROP_EVENT_FAILED' };
   }
+
+  return { ok: false, method: 'drop-event', error: 'DROP_EVENT_NO_PREVIEW' };
 }
 
 function acceptsImage(input: HTMLInputElement): boolean {
@@ -372,225 +316,46 @@ function acceptsImage(input: HTMLInputElement): boolean {
   );
 }
 
+function documentBodyIncludes(text: string): boolean {
+  return Boolean(text) && document.body?.innerText?.includes(text);
+}
+
 interface AttachmentStateSnapshot {
   count: number;
   imageCount: number;
   text: string;
-  hasFileName: boolean;
-  matchedFailure?: AttachEvidence;
-  matchedProgress?: AttachEvidence;
-  matchedSuccess?: AttachEvidence;
 }
 
-export function findAttachmentObservationRoot(target: Element): Element {
-  const rootSelectors = [
-    '[data-testid*="composer" i]',
-    '[data-test-id*="composer" i]',
-    '[aria-label*="composer" i]',
-    'rich-textarea',
-    'form',
-    'main',
-    '[role="main"]'
-  ];
-
-  for (const selector of rootSelectors) {
-    const root = target.closest(selector);
-    if (root instanceof HTMLElement && isVisible(root)) {
-      return root;
-    }
-  }
-
-  let candidate: Element | null = target;
-  for (let depth = 0; depth < 4 && candidate?.parentElement; depth += 1) {
-    candidate = candidate.parentElement;
-  }
-
-  return candidate ?? document.body;
-}
-
-export function snapshotAttachmentState(selectors: string[], root: ParentNode = document.body, file?: File): AttachmentStateSnapshot {
-  const rootElement = root instanceof Element ? root : document.body;
-  const text = rootElement.textContent ?? '';
-
+function snapshotAttachmentState(selectors: string[]): AttachmentStateSnapshot {
   return {
-    count: snapshotAttachmentCountInRoot(selectors, root),
-    imageCount: querySelectorCandidatesInRoot(
-      root,
-      'img[src^="blob:"], img[src^="data:image"], image-preview, file-preview, upload-image'
-    ).filter(isVisible).length,
-    text,
-    hasFileName: file ? text.includes(file.name) : false,
-    matchedFailure: findTextEvidence(text, DEFAULT_ATTACHMENT_FAILURE_TEXT_PATTERNS, 'failure-text'),
-    matchedProgress: findTextEvidence(text, DEFAULT_ATTACHMENT_PROGRESS_TEXT_PATTERNS, 'progress-text'),
-    matchedSuccess: findTextEvidence(text, DEFAULT_ATTACHMENT_SUCCESS_TEXT_PATTERNS, 'success-text')
+    count: snapshotAttachmentCount(selectors),
+    imageCount: document.querySelectorAll('img, image-preview, file-preview, upload-image').length,
+    text: document.body?.innerText ?? ''
   };
 }
 
-export async function waitForAttachmentOutcome(
-  method: AttachMethod,
+async function waitForRelaxedAttachmentSuccess(
   selectors: string[],
   before: AttachmentStateSnapshot,
-  root: Element,
-  file: File | undefined,
-  options: {
-    timeoutMs: number;
-    successTextPatterns?: RegExp[];
-    progressTextPatterns?: RegExp[];
-    failureTextPatterns?: RegExp[];
-  }
-): Promise<AttachResult> {
+  timeoutMs: number,
+  successTextPatterns: RegExp[] = []
+): Promise<boolean> {
   const startedAt = Date.now();
-  const failurePatterns = [...DEFAULT_ATTACHMENT_FAILURE_TEXT_PATTERNS, ...(options.failureTextPatterns ?? [])];
-  const successPatterns = [...DEFAULT_ATTACHMENT_SUCCESS_TEXT_PATTERNS, ...(options.successTextPatterns ?? [])];
-  const progressPatterns = [...DEFAULT_ATTACHMENT_PROGRESS_TEXT_PATTERNS, ...(options.progressTextPatterns ?? [])];
-  let lastProgressEvidence: AttachEvidence | undefined;
-  let mutationSeen = false;
-  let resolveMutation: (() => void) | undefined;
-  const observer = new MutationObserver(() => {
-    mutationSeen = true;
-    resolveMutation?.();
-    resolveMutation = undefined;
-  });
 
-  observer.observe(root, {
-    attributes: true,
-    childList: true,
-    subtree: true,
-    attributeFilter: ['aria-label', 'class', 'data-testid', 'data-test-id', 'src', 'title']
-  });
+  while (Date.now() - startedAt < timeoutMs) {
+    const current = snapshotAttachmentState(selectors);
+    const textDelta = current.text.slice(Math.min(before.text.length, current.text.length));
 
-  async function waitForNextObservationTick(): Promise<void> {
-    if (!mutationSeen) {
-      await Promise.race([
-        sleep(250),
-        new Promise<void>((resolve) => {
-          resolveMutation = resolve;
-        })
-      ]);
-      resolveMutation = undefined;
+    if (current.count > before.count || current.imageCount > before.imageCount) {
+      return true;
     }
 
-    if (mutationSeen) {
-      await sleep(50);
+    if (successTextPatterns.some((pattern) => pattern.test(current.text) || pattern.test(textDelta))) {
+      return true;
     }
+
+    await sleep(250);
   }
 
-  try {
-    while (Date.now() - startedAt < options.timeoutMs) {
-      const current = snapshotAttachmentState(selectors, root, file);
-      const textDelta = getTextDelta(before.text, current.text);
-      const failureEvidence = current.matchedFailure ?? findTextEvidence(textDelta, failurePatterns, 'failure-text');
-      if (failureEvidence && !before.matchedFailure) {
-        return {
-          ok: false,
-          method,
-          error: 'AUTO_ATTACH_FAILED',
-          confidence: 'confirmed',
-          evidence: [failureEvidence]
-        };
-      }
-
-      if (current.count > before.count) {
-        return {
-          ok: true,
-          method,
-          confidence: 'confirmed',
-          evidence: [{ kind: 'attachment-preview', message: 'A visible attachment preview appeared.' }]
-        };
-      }
-
-      if (current.imageCount > before.imageCount) {
-        return {
-          ok: true,
-          method,
-          confidence: 'confirmed',
-          evidence: [{ kind: 'image-preview', message: 'An image preview appeared.' }]
-        };
-      }
-
-      if (file && !before.hasFileName && current.hasFileName) {
-        return {
-          ok: true,
-          method,
-          confidence: 'confirmed',
-          evidence: [{ kind: 'file-name', message: file.name }]
-        };
-      }
-
-      const successEvidence = current.matchedSuccess ?? findTextEvidence(textDelta, successPatterns, 'success-text');
-      if (successEvidence && !before.matchedSuccess) {
-        return {
-          ok: true,
-          method,
-          confidence: 'confirmed',
-          evidence: [successEvidence]
-        };
-      }
-
-      const progressEvidence = current.matchedProgress ?? findTextEvidence(textDelta, progressPatterns, 'progress-text');
-      if (progressEvidence && !before.matchedProgress) {
-        lastProgressEvidence = progressEvidence;
-      }
-
-      await waitForNextObservationTick();
-      mutationSeen = false;
-    }
-  } finally {
-    observer.disconnect();
-  }
-
-  if (lastProgressEvidence) {
-    return {
-      ok: false,
-      method,
-      error: 'ATTACHMENT_UNCONFIRMED',
-      confidence: 'unconfirmed',
-      evidence: [lastProgressEvidence]
-    };
-  }
-
-  return {
-    ok: false,
-    method,
-    error: `${method.toUpperCase().replace('-', '_')}_NO_CONFIRMED_ATTACHMENT`,
-    confidence: 'unconfirmed'
-  };
-}
-
-function snapshotAttachmentCountInRoot(selectors: string[], root: ParentNode): number {
-  const elements = new Set<Element>();
-
-  for (const selector of [...selectors, ...GENERIC_ATTACHMENT_PREVIEW_SELECTORS]) {
-    for (const element of querySelectorCandidatesInRoot(root, selector)) {
-      elements.add(element);
-    }
-  }
-
-  return Array.from(elements).filter(isVisible).length;
-}
-
-function querySelectorCandidatesInRoot(root: ParentNode, selector: string): Element[] {
-  try {
-    return Array.from(root.querySelectorAll(selector));
-  } catch {
-    return [];
-  }
-}
-
-function findTextEvidence(text: string, patterns: RegExp[], kind: string): AttachEvidence | undefined {
-  for (const pattern of patterns) {
-    if (pattern.test(text)) {
-      return { kind, message: pattern.source };
-    }
-  }
-
-  return undefined;
-}
-
-function getTextDelta(beforeText: string, currentText: string): string {
-  if (!beforeText || !currentText.startsWith(beforeText)) {
-    return currentText;
-  }
-
-  return currentText.slice(beforeText.length);
+  return false;
 }
