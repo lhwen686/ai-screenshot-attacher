@@ -66,7 +66,7 @@ export const chatgptAdapter: AiTargetAdapter = {
 
   async pasteClipboardImage(): Promise<AttachResult> {
     return tryPasteClipboardViaCommand(selectors.textInputs, selectors.attachmentPreviews, {
-      timeoutMs: 7000
+      timeoutMs: 3500
     });
   },
 
