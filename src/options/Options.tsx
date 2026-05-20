@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './options.css';
-import { AI_TARGETS, TARGET_IDS, type TargetId } from '../shared/constants';
+import { AI_TARGETS, TARGET_IDS } from '../shared/constants';
 import { getSettings, saveSettings, type AppSettings } from '../shared/settings';
 
 function Options() {
@@ -37,19 +37,26 @@ function Options() {
           onChange={(checked) => void patchSettings({ autoAttachEnabled: checked })}
         />
 
-        <label className="field">
-          <span>默认目标 AI</span>
-          <select
-            value={settings.defaultTargetId}
-            onChange={(event) => void patchSettings({ defaultTargetId: event.target.value as TargetId })}
-          >
+        <fieldset className="model-field">
+          <legend>默认模型</legend>
+          <div className="model-options">
             {TARGET_IDS.map((targetId) => (
-              <option key={targetId} value={targetId}>
-                {AI_TARGETS[targetId].name}
-              </option>
+              <label
+                className={`model-option ${settings.defaultTargetId === targetId ? 'is-selected' : ''}`}
+                key={targetId}
+              >
+                <input
+                  checked={settings.defaultTargetId === targetId}
+                  name="default-model"
+                  onChange={() => void patchSettings({ defaultTargetId: targetId })}
+                  type="radio"
+                  value={targetId}
+                />
+                <span>{AI_TARGETS[targetId].name}</span>
+              </label>
             ))}
-          </select>
-        </label>
+          </div>
+        </fieldset>
 
         <Toggle
           checked={settings.showPageToast}

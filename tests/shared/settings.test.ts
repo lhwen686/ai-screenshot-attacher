@@ -27,6 +27,15 @@ describe('settings', () => {
     expect(chrome.storage.sync.set).toHaveBeenCalledWith({ settings: next });
   });
 
+  it('allows each supported target to be saved as the default model', async () => {
+    for (const targetId of TARGET_IDS) {
+      const next = await saveSettings({ defaultTargetId: targetId });
+
+      expect(next.defaultTargetId).toBe(targetId);
+      expect(chrome.storage.sync.set).toHaveBeenLastCalledWith({ settings: next });
+    }
+  });
+
   it('keeps target definitions aligned with target ids', () => {
     expect(Object.keys(AI_TARGETS).sort()).toEqual([...TARGET_IDS].sort());
   });

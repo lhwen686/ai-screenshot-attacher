@@ -150,11 +150,11 @@ Default commands:
 
 默认命令：
 
-- `Alt+Shift+A`: attach to default AI target. / 附加到默认 AI。
+- `Alt+Shift+A`: attach to the default model/platform selected in settings. / 附加到设置中选择的默认模型/平台。
 - `Alt+Shift+1`: attach to ChatGPT. / 附加到 ChatGPT。
 - `Alt+Shift+2`: attach to Claude. / 附加到 Claude。
 - `Alt+Shift+3`: attach to Gemini. / 附加到 Gemini。
-- Doubao has no default shortcut because Chrome allows only 4 default command shortcuts per extension. Use the popup button, set Doubao as the default target, or free another shortcut in the browser shortcuts page and assign one manually. / 豆包没有默认快捷键，因为 Chrome 每个扩展最多允许 4 个默认命令快捷键。可使用 popup 按钮、把豆包设为默认目标，或在浏览器快捷键页面释放其他快捷键后手动分配。
+- Doubao has no default shortcut because Chrome allows only 4 default command shortcuts per extension. Use the popup button, set Doubao as the default model, or free another shortcut in the browser shortcuts page and assign one manually. / 豆包没有默认快捷键，因为 Chrome 每个扩展最多允许 4 个默认命令快捷键。可使用 popup 按钮、把豆包设为默认模型，或在浏览器快捷键页面释放其他快捷键后手动分配。
 
 If a shortcut is already used by the browser or OS, change it at `chrome://extensions/shortcuts` or `edge://extensions/shortcuts`.
 
@@ -169,7 +169,7 @@ If a shortcut is already used by the browser or OS, change it at `chrome://exten
 5. Confirm no message is sent automatically.
 6. Repeat with `Alt+Shift+2` for Claude.
 7. Repeat with `Alt+Shift+3` for Gemini.
-8. Repeat with the popup Doubao button or set Doubao as the default target and press `Alt+Shift+A`.
+8. Repeat with the popup Doubao button or set Doubao as the default model and press `Alt+Shift+A`.
 9. Clear the clipboard or copy text only, then trigger the extension.
 10. Confirm the popup shows `未检测到剪贴板图片，请先截图后再试。`
 11. If automatic attachment fails, confirm the input is focused and the screenshot remains available for manual paste.
@@ -181,7 +181,7 @@ If a shortcut is already used by the browser or OS, change it at `chrome://exten
 16. 确认插件不会自动发送消息。
 17. 使用 `Alt+Shift+2` 测试 Claude。
 18. 使用 `Alt+Shift+3` 测试 Gemini。
-19. 使用 popup 里的豆包按钮测试，或把豆包设为默认目标后按 `Alt+Shift+A`。
+19. 使用 popup 里的豆包按钮测试，或把豆包设为默认模型后按 `Alt+Shift+A`。
 20. 清空剪贴板或只复制文本，再触发插件。
 21. 确认 popup 显示 `未检测到剪贴板图片，请先截图后再试。`
 22. 如果自动附加失败，确认输入框被聚焦，且截图仍可手动粘贴。
@@ -206,8 +206,8 @@ When enabled:
 - 新图片会优先附加到当前聚焦的 AI 页面。
 - If no supported AI page is open, the monitor stops and no clipboard reads are attempted.
 - 如果没有受支持的 AI 页面打开，监控会停止，不会尝试读取剪贴板。
-- Clicking the extension button still keeps the original behavior: it opens the default AI target if needed.
-- 点击插件按钮仍保留原行为：必要时自动打开默认 AI 目标页面。
+- Clicking the extension button still keeps the original behavior: it opens the selected default model/platform if needed.
+- 点击插件按钮仍保留原行为：必要时自动打开所选默认模型/平台页面。
 
 ## Troubleshooting / 故障排查
 
@@ -232,7 +232,7 @@ Open the extension options page to change:
 
 打开扩展设置页可以修改：
 
-- Default target AI. / 默认目标 AI。
+- Default model/platform: choose ChatGPT, Claude, Gemini, or Doubao for `Alt+Shift+A` and the popup primary button. This does not choose a model version inside those sites. / 默认模型/平台：为 `Alt+Shift+A` 和 popup 主按钮选择 ChatGPT、Claude、Gemini 或豆包。这不会选择站点内部的具体模型版本。
 - Whether to show a page toast after success. / 成功后是否显示页面 Toast。
 - Whether to enable automatic paste mode. / 是否启用自动粘贴模式。
 - Whether to write the image back to the clipboard on failure. / 失败时是否写回剪贴板。

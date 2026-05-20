@@ -76,7 +76,7 @@ function Popup() {
       </header>
 
       <section className="default-target">
-        <span>默认目标</span>
+        <span>默认模型</span>
         <strong>{defaultTarget.name}</strong>
       </section>
 
@@ -89,7 +89,7 @@ function Popup() {
       </section>
 
       <button className="primary-button" disabled={runningTarget !== null} onClick={() => void attach()} type="button">
-        {runningTarget === 'default' ? '正在附加...' : '附加剪贴板截图到默认 AI'}
+        {runningTarget === 'default' ? '正在附加...' : '附加到默认模型'}
       </button>
 
       <div className="quick-grid" aria-label="快速目标">
