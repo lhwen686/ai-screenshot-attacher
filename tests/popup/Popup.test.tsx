@@ -61,7 +61,7 @@ describe('popup UI', () => {
     await import('../../src/popup/Popup');
 
     expect(await screen.findByText('默认模型')).toBeInTheDocument();
-    expect(screen.getByText('豆包')).toBeInTheDocument();
+    expect(await screen.findByText('豆包')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: '附加到默认模型' }));
 
     await waitFor(() => {
