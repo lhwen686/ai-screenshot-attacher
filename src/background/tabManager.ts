@@ -1,11 +1,13 @@
-import { ATTACH_RUNTIME_FILE, AI_TARGETS, TARGET_IDS, USER_MESSAGES, type TargetId } from '../shared/constants';
+import { ATTACH_RUNTIME_FILE, AI_TARGETS, TARGET_IDS, type TargetId } from '../shared/constants';
 import type { AppSettings } from '../shared/settings';
 import type { AttachResult } from '../adapters/types';
 import type { AttachRuntimePayload } from '../shared/messages';
 import { logger } from '../shared/logger';
 
-const TAB_LOAD_TIMEOUT_MS = 30000;
+const TARGET_DOCUMENT_TIMEOUT_MS = 15000;
+const SCRIPT_INJECTION_RETRY_INTERVAL_MS = 100;
 const TARGET_WINDOW_TYPES = ['normal', 'popup', 'app'] as const;
+type ScriptExecutionWorld = 'ISOLATED' | 'MAIN';
 
 interface TargetTabCandidate {
   targetId: TargetId;
@@ -25,7 +27,6 @@ export async function getOrCreateTargetTab(targetId: TargetId, settings: AppSett
 
   if (existingTab?.id !== undefined) {
     await activateTab(existingTab);
-    await waitForTabComplete(existingTab.id, TAB_LOAD_TIMEOUT_MS);
     return (await chrome.tabs.get(existingTab.id)) as chrome.tabs.Tab;
   }
 
@@ -40,8 +41,7 @@ export async function getOrCreateTargetTab(targetId: TargetId, settings: AppSett
     if (!updated?.id) {
       throw new Error('TARGET_TAB_FAILED');
     }
-    await waitForTabComplete(updated.id, TAB_LOAD_TIMEOUT_MS);
-    return (await chrome.tabs.get(updated.id)) as chrome.tabs.Tab;
+    return updated;
   }
 
   const created = await chrome.tabs.create({
@@ -51,8 +51,7 @@ export async function getOrCreateTargetTab(targetId: TargetId, settings: AppSett
   if (!created.id) {
     throw new Error('TARGET_TAB_FAILED');
   }
-  await waitForTabComplete(created.id, TAB_LOAD_TIMEOUT_MS);
-  return (await chrome.tabs.get(created.id)) as chrome.tabs.Tab;
+  return created;
 }
 
 async function findExistingTargetTab(targetId: TargetId): Promise<chrome.tabs.Tab | undefined> {
@@ -192,14 +191,28 @@ function scoreCandidate(tab: chrome.tabs.Tab, chromeWindow: chrome.windows.Windo
 
 export async function executeAttachRuntime(tabId: number, payload: AttachRuntimePayload): Promise<AttachResult> {
   try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: [ATTACH_RUNTIME_FILE]
-    });
+    const targetReady = await waitForTargetDocument(tabId, payload.targetId, TARGET_DOCUMENT_TIMEOUT_MS);
+    if (!targetReady) {
+      return { ok: false, method: 'clipboard-fallback', error: 'TARGET_NOT_READY' };
+    }
+
+    if (payload.targetId === 'gemini') {
+      const clipboardPasteResult = await executeGeminiClipboardPasteRuntime(tabId);
+      if (clipboardPasteResult.ok) {
+        return clipboardPasteResult;
+      }
+    }
+
+    const world = getAttachRuntimeWorld(payload.targetId);
+    const injected = await injectAttachRuntimeWithRetry(tabId, payload.targetId, world, TARGET_DOCUMENT_TIMEOUT_MS);
+    if (!injected) {
+      return { ok: false, method: 'clipboard-fallback', error: 'SCRIPT_INJECTION_FAILED' };
+    }
 
     const results = await chrome.scripting.executeScript({
       target: { tabId },
       args: [payload],
+      world,
       func: async (runtimePayload: AttachRuntimePayload) => {
         const runtime = window.__AI_SCREENSHOT_ATTACHER__;
         if (!runtime) {
@@ -220,6 +233,193 @@ export async function executeAttachRuntime(tabId: number, payload: AttachRuntime
     logger.error('script injection failed', { error });
     return { ok: false, method: 'clipboard-fallback', error: 'SCRIPT_INJECTION_FAILED' };
   }
+}
+
+async function executeGeminiClipboardPasteRuntime(tabId: number): Promise<AttachResult> {
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'ISOLATED',
+      args: [TARGET_DOCUMENT_TIMEOUT_MS],
+      func: async (inputTimeoutMs: number) => {
+        const inputSelectors = [
+          '.ql-editor.textarea.new-input-ui',
+          '.ql-editor[contenteditable="true"]',
+          '[aria-label="为 Gemini 输入提示"]',
+          '[aria-label*="Gemini" i][contenteditable="true"]',
+          '[aria-label*="prompt" i][contenteditable="true"]',
+          'main [contenteditable]:not([contenteditable="false"])',
+          '[role="textbox"]'
+        ];
+        const previewSelectors = [
+          'file-preview',
+          'image-preview',
+          'upload-image',
+          'mat-chip',
+          'img[src^="blob:"]',
+          '[class*="image-preview" i]',
+          '[class*="file-preview" i]',
+          '[class*="upload" i]',
+          '[class*="attachment" i]',
+          '[aria-label*="attached" i]',
+          '[aria-label*="uploaded" i]',
+          '[aria-label*="remove" i]',
+          'mat-progress-spinner',
+          'mat-spinner'
+        ];
+        const progressPatterns = [/uploading/i, /processing/i, /attached/i, /上传中/, /正在上传/, /处理中/, /已附加/];
+
+        const isVisible = (element: Element) => {
+          const rect = element.getBoundingClientRect();
+          const style = window.getComputedStyle(element);
+          return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+        };
+        const queryVisible = (selectors: string[]) => {
+          for (const selector of selectors) {
+            try {
+              const match = Array.from(document.querySelectorAll<HTMLElement>(selector)).find(isVisible);
+              if (match) {
+                return match;
+              }
+            } catch {
+              continue;
+            }
+          }
+          return undefined;
+        };
+        const snapshot = () => {
+          const elements = new Set<Element>();
+          for (const selector of previewSelectors) {
+            try {
+              document.querySelectorAll(selector).forEach((element) => {
+                if (isVisible(element)) {
+                  elements.add(element);
+                }
+              });
+            } catch {
+              continue;
+            }
+          }
+          return {
+            count: elements.size,
+            imageCount: document.querySelectorAll('img, image-preview, file-preview, upload-image').length,
+            text: document.body?.innerText ?? ''
+          };
+        };
+        const focusEditable = (target: HTMLElement) => {
+          target.focus({ preventScroll: false });
+          if (target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement) {
+            target.setSelectionRange(target.value.length, target.value.length);
+            return;
+          }
+          if (!target.isContentEditable) {
+            return;
+          }
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(target);
+          range.collapse(false);
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        };
+
+        const waitForInput = async () => {
+          const startedAt = Date.now();
+          while (Date.now() - startedAt < inputTimeoutMs) {
+            const target = queryVisible(inputSelectors);
+            if (target) {
+              return target;
+            }
+            await new Promise((resolve) => window.setTimeout(resolve, 100));
+          }
+          return undefined;
+        };
+
+        const target = await waitForInput();
+        if (!target) {
+          return { ok: false, method: 'paste-command', error: 'INPUT_NOT_FOUND' };
+        }
+
+        const before = snapshot();
+        focusEditable(target);
+        await new Promise((resolve) => window.setTimeout(resolve, 100));
+
+        let didPaste = false;
+        try {
+          didPaste = document.execCommand('paste');
+        } catch {
+          return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_FAILED' };
+        }
+
+        if (!didPaste) {
+          return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_REJECTED' };
+        }
+
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < 4500) {
+          const current = snapshot();
+          const textDelta = current.text.slice(Math.min(before.text.length, current.text.length));
+          if (current.count > before.count || current.imageCount > before.imageCount) {
+            return { ok: true, method: 'paste-command' };
+          }
+          if (progressPatterns.some((pattern) => pattern.test(current.text) || pattern.test(textDelta))) {
+            return { ok: true, method: 'paste-command' };
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 100));
+        }
+
+        return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_NO_PREVIEW' };
+      }
+    });
+
+    return (
+      (results[0]?.result as AttachResult | undefined) ?? {
+        ok: false,
+        method: 'paste-command',
+        error: 'PASTE_COMMAND_FAILED'
+      }
+    );
+  } catch (error) {
+    logger.debug('Gemini clipboard paste runtime failed', { error });
+    return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_FAILED' };
+  }
+}
+
+function getAttachRuntimeWorld(targetId: TargetId): ScriptExecutionWorld {
+  return targetId === 'gemini' ? 'MAIN' : 'ISOLATED';
+}
+
+async function injectAttachRuntimeWithRetry(
+  tabId: number,
+  targetId: TargetId,
+  world: ScriptExecutionWorld,
+  timeoutMs: number
+): Promise<boolean> {
+  const startedAt = Date.now();
+  let lastError: unknown;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const tab = await getTabSafely(tabId);
+    if (!isTargetUrl(tab?.url, AI_TARGETS[targetId].hostnames)) {
+      await sleep(SCRIPT_INJECTION_RETRY_INTERVAL_MS);
+      continue;
+    }
+
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        world,
+        files: [ATTACH_RUNTIME_FILE]
+      });
+      return true;
+    } catch (error) {
+      lastError = error;
+      await sleep(SCRIPT_INJECTION_RETRY_INTERVAL_MS);
+    }
+  }
+
+  logger.warn('attach runtime injection retries exhausted', { tabId, targetId, error: lastError });
+  return false;
 }
 
 export async function showToastOnPage(tabId: number, message: string, variant: 'success' | 'warning' | 'error' | 'info'): Promise<void> {
@@ -283,26 +483,41 @@ async function activateTab(tab: chrome.tabs.Tab): Promise<void> {
   }
 }
 
-async function waitForTabComplete(tabId: number, timeoutMs: number): Promise<void> {
-  const tab = await chrome.tabs.get(tabId);
-  if (tab.status === 'complete') {
-    return;
+async function waitForTargetDocument(tabId: number, targetId: TargetId, timeoutMs: number): Promise<boolean> {
+  const target = AI_TARGETS[targetId];
+  const currentTab = await getTabSafely(tabId);
+  if (isTargetUrl(currentTab?.url, target.hostnames)) {
+    return true;
   }
 
-  await new Promise<void>((resolve, reject) => {
+  return new Promise((resolve) => {
     const timeoutId = globalThis.setTimeout(() => {
       chrome.tabs.onUpdated.removeListener(listener);
-      reject(new Error(USER_MESSAGES.targetLoadFailed));
+      resolve(false);
     }, timeoutMs);
 
-    const listener = (updatedTabId: number, changeInfo: { status?: string }) => {
-      if (updatedTabId === tabId && changeInfo.status === 'complete') {
+    const listener = (updatedTabId: number, changeInfo: { url?: string }, tab: chrome.tabs.Tab) => {
+      if (updatedTabId === tabId && isTargetUrl(changeInfo.url ?? tab.url, target.hostnames)) {
         globalThis.clearTimeout(timeoutId);
         chrome.tabs.onUpdated.removeListener(listener);
-        resolve();
+        resolve(true);
       }
     };
 
     chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+async function getTabSafely(tabId: number): Promise<chrome.tabs.Tab | undefined> {
+  try {
+    return await chrome.tabs.get(tabId);
+  } catch {
+    return undefined;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    globalThis.setTimeout(resolve, ms);
   });
 }

@@ -1,4 +1,4 @@
-export type AttachMethod = 'file-input' | 'paste-event' | 'drop-event' | 'clipboard-fallback';
+export type AttachMethod = 'file-input' | 'paste-event' | 'paste-command' | 'drop-event' | 'clipboard-fallback';
 
 export interface AttachResult {
   ok: boolean;

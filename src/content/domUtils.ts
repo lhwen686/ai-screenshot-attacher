@@ -1,6 +1,8 @@
 import type { AttachResult } from '../adapters/types';
 import type { ClipboardImagePayload } from '../clipboard/types';
 
+const DOM_POLL_INTERVAL_MS = 100;
+
 export const GENERIC_FILE_INPUT_SELECTORS = [
   'input[type="file"][accept*="image" i]',
   'input[type="file"][accept*="png" i]',
@@ -107,7 +109,7 @@ export async function waitForAnyElement(selectors: string[], timeoutMs: number):
     if (findFirstCandidate(selectors, { visibleOnly: true })) {
       return true;
     }
-    await sleep(250);
+    await sleep(DOM_POLL_INTERVAL_MS);
   }
 
   return false;
@@ -154,7 +156,7 @@ export async function waitForAttachmentChange(
     if (snapshotAttachmentCount(selectors) > beforeCount || (file && !hadFileName && documentBodyIncludes(file.name))) {
       return true;
     }
-    await sleep(250);
+    await sleep(DOM_POLL_INTERVAL_MS);
   }
 
   return false;
@@ -237,7 +239,7 @@ export async function tryAttachViaPasteRelaxed(
 
   try {
     const beforeSnapshot = snapshotAttachmentState(previewSelectors);
-    target.focus({ preventScroll: false });
+    focusEditableTarget(target);
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
     const event = new ClipboardEvent('paste', {
@@ -259,6 +261,34 @@ export async function tryAttachViaPasteRelaxed(
   }
 
   return { ok: false, method: 'paste-event', error: 'PASTE_EVENT_NO_PREVIEW' };
+}
+
+export async function tryPasteClipboardViaCommand(
+  inputSelectors: string[],
+  previewSelectors: string[],
+  options: { timeoutMs?: number; successTextPatterns?: RegExp[] } = {}
+): Promise<AttachResult> {
+  const target = findFirstCandidate<HTMLElement>(inputSelectors, { visibleOnly: true });
+  if (!target) {
+    return { ok: false, method: 'paste-command', error: 'INPUT_NOT_FOUND' };
+  }
+
+  try {
+    const beforeSnapshot = snapshotAttachmentState(previewSelectors);
+    focusEditableTarget(target);
+    const didPaste = document.execCommand('paste');
+    if (!didPaste) {
+      return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_REJECTED' };
+    }
+
+    if (await waitForRelaxedAttachmentSuccess(previewSelectors, beforeSnapshot, options.timeoutMs ?? 4500, options.successTextPatterns)) {
+      return { ok: true, method: 'paste-command' };
+    }
+  } catch {
+    return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_FAILED' };
+  }
+
+  return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_NO_PREVIEW' };
 }
 
 export async function tryAttachViaDrop(
@@ -320,6 +350,27 @@ function documentBodyIncludes(text: string): boolean {
   return Boolean(text) && document.body?.innerText?.includes(text);
 }
 
+function focusEditableTarget(target: HTMLElement): void {
+  target.focus({ preventScroll: false });
+
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement) {
+    const end = target.value.length;
+    target.setSelectionRange(end, end);
+    return;
+  }
+
+  if (!target.isContentEditable) {
+    return;
+  }
+
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(target);
+  range.collapse(false);
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
+
 interface AttachmentStateSnapshot {
   count: number;
   imageCount: number;
@@ -354,7 +405,7 @@ async function waitForRelaxedAttachmentSuccess(
       return true;
     }
 
-    await sleep(250);
+    await sleep(DOM_POLL_INTERVAL_MS);
   }
 
   return false;

@@ -49,8 +49,8 @@ export const chatgptAdapter: AiTargetAdapter = {
 
   async attachImage(file: File): Promise<AttachResult> {
     for (const strategy of [
-      () => tryAttachViaFileInput(file, selectors.fileInputs, selectors.attachmentPreviews),
       () => tryAttachViaPaste(file, selectors.textInputs, selectors.attachmentPreviews),
+      () => tryAttachViaFileInput(file, selectors.fileInputs, selectors.attachmentPreviews),
       () => tryAttachViaDrop(file, selectors.dropTargets, selectors.attachmentPreviews)
     ]) {
       const result = await strategy();
