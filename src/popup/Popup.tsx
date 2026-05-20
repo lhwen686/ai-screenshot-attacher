@@ -49,10 +49,7 @@ function Popup() {
     };
   }, []);
 
-  const defaultTarget = useMemo(
-    () => AI_TARGETS[settings?.defaultTargetId ?? 'chatgpt'],
-    [settings?.defaultTargetId]
-  );
+  const defaultTarget = useMemo(() => AI_TARGETS[settings?.defaultTargetId ?? 'chatgpt'], [settings?.defaultTargetId]);
 
   async function attach(targetId?: TargetId) {
     const marker = targetId ?? 'default';
@@ -83,18 +80,15 @@ function Popup() {
         <strong>{defaultTarget.name}</strong>
       </section>
 
-      <section className={`auto-status ${autoStatus?.active ? 'is-active' : settings?.autoAttachEnabled ? 'is-waiting' : ''}`}>
+      <section
+        className={`auto-status ${autoStatus?.active ? 'is-active' : settings?.autoAttachEnabled ? 'is-waiting' : ''}`}
+      >
         <span>自动模式</span>
         <strong>{getAutoStatusLabel(settings, autoStatus)}</strong>
         <small>{autoStatus?.message ?? '打开设置可启用自动粘贴'}</small>
       </section>
 
-      <button
-        className="primary-button"
-        disabled={runningTarget !== null}
-        onClick={() => void attach()}
-        type="button"
-      >
+      <button className="primary-button" disabled={runningTarget !== null} onClick={() => void attach()} type="button">
         {runningTarget === 'default' ? '正在附加...' : '附加剪贴板截图到默认 AI'}
       </button>
 
@@ -115,7 +109,11 @@ function Popup() {
       <section className={`result-panel ${lastResult?.ok ? 'is-success' : lastResult ? 'is-error' : ''}`}>
         <span>最近一次结果</span>
         <p>{lastResult?.message ?? '暂无操作记录'}</p>
-        {lastResult?.targetName ? <small>{lastResult.targetName} · {lastResult.trigger === 'auto' ? '自动' : '手动'}</small> : null}
+        {lastResult?.targetName ? (
+          <small>
+            {lastResult.targetName} · {lastResult.trigger === 'auto' ? '自动' : '手动'}
+          </small>
+        ) : null}
       </section>
 
       <button className="link-button" type="button" onClick={() => chrome.runtime.openOptionsPage()}>

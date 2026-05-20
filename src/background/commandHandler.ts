@@ -73,7 +73,9 @@ export async function attachToTarget(targetId?: TargetId): Promise<OperationResu
       return result;
     }
 
-    const fallbackMessage = settings.writeBackOnFailure ? USER_MESSAGES.attachFallback : USER_MESSAGES.attachFallbackNoWrite;
+    const fallbackMessage = settings.writeBackOnFailure
+      ? USER_MESSAGES.attachFallback
+      : USER_MESSAGES.attachFallbackNoWrite;
     let finalMessage: string = fallbackMessage;
 
     if (settings.writeBackOnFailure) {
@@ -105,9 +107,10 @@ export async function attachToTarget(targetId?: TargetId): Promise<OperationResu
       error
     });
 
-    const message = error instanceof Error && error.message === USER_MESSAGES.targetLoadFailed
-      ? USER_MESSAGES.targetLoadFailed
-      : getErrorMessage('TARGET_TAB_FAILED');
+    const message =
+      error instanceof Error && error.message === USER_MESSAGES.targetLoadFailed
+        ? USER_MESSAGES.targetLoadFailed
+        : getErrorMessage('TARGET_TAB_FAILED');
 
     if (tabId && settings.showPageToast) {
       await showToastOnPage(tabId, message, 'error');

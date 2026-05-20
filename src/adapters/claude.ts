@@ -53,7 +53,9 @@ export const claudeAdapter: AiTargetAdapter = {
 
   async attachImage(file: File): Promise<AttachResult> {
     const result = await tryAttachViaPaste(file, selectors.textInputs, selectors.attachmentPreviews);
-    return result.ok ? result : { ok: false, method: 'clipboard-fallback', error: result.error ?? 'AUTO_ATTACH_FAILED' };
+    return result.ok
+      ? result
+      : { ok: false, method: 'clipboard-fallback', error: result.error ?? 'AUTO_ATTACH_FAILED' };
   },
 
   async focusInput() {

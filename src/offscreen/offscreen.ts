@@ -40,7 +40,9 @@ chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sende
   return false;
 });
 
-async function readClipboardImageInDocument(options: { usePasteFallback: boolean } = { usePasteFallback: true }): Promise<ClipboardReadResult> {
+async function readClipboardImageInDocument(
+  options: { usePasteFallback: boolean } = { usePasteFallback: true }
+): Promise<ClipboardReadResult> {
   let asyncClipboardError: ClipboardReadResult | undefined;
 
   try {
@@ -65,23 +67,29 @@ async function readClipboardImageInDocument(options: { usePasteFallback: boolean
       message: foundUnsupportedImage ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。' : USER_MESSAGES.noClipboardImage
     };
   } catch (error) {
-    const type = error instanceof DOMException && ['NotAllowedError', 'SecurityError'].includes(error.name)
-      ? 'NO_PERMISSION'
-      : 'CLIPBOARD_READ_FAILED';
+    const type =
+      error instanceof DOMException && ['NotAllowedError', 'SecurityError'].includes(error.name)
+        ? 'NO_PERMISSION'
+        : 'CLIPBOARD_READ_FAILED';
 
     asyncClipboardError = {
       ok: false,
       error: type,
-      message: type === 'NO_PERMISSION' ? '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。' : '读取剪贴板失败，请重新截图后再试。'
+      message:
+        type === 'NO_PERMISSION'
+          ? '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。'
+          : '读取剪贴板失败，请重新截图后再试。'
     };
   }
 
   if (!options.usePasteFallback) {
-    return asyncClipboardError ?? {
-      ok: false,
-      error: 'CLIPBOARD_READ_FAILED',
-      message: '读取剪贴板失败，请重新截图后再试。'
-    };
+    return (
+      asyncClipboardError ?? {
+        ok: false,
+        error: 'CLIPBOARD_READ_FAILED',
+        message: '读取剪贴板失败，请重新截图后再试。'
+      }
+    );
   }
 
   const pasteCommandResult = await readClipboardImageByPasteCommand();

@@ -19,7 +19,8 @@ import {
 const uploadTextPatterns = [/uploading/i, /processing/i, /attached/i, /上传中/, /正在上传/, /处理中/, /已附加/];
 const uploadMenuTextPattern = /upload|attach|image|photo|file|device|上传|附件|图片|照片|文件|设备|本机/i;
 const attachmentButtonTextPattern = /add|attach|upload|plus|more|添加|附件|上传|更多/i;
-const invalidAttachmentTextPattern = /文件中没有内容|文件为空|empty file|file is empty|has no content|unable to upload|无法上传/i;
+const invalidAttachmentTextPattern =
+  /文件中没有内容|文件为空|empty file|file is empty|has no content|unable to upload|无法上传/i;
 
 const selectors: AdapterSelectorSet = {
   fileInputs: [...GENERIC_FILE_INPUT_SELECTORS],
@@ -123,7 +124,12 @@ export const geminiAdapter: AiTargetAdapter = {
       : {
           ok: false,
           method: 'clipboard-fallback',
-          error: dropResult.error ?? pasteEventResult.error ?? pasteCommandResult.error ?? uploadResult.error ?? 'AUTO_ATTACH_FAILED'
+          error:
+            dropResult.error ??
+            pasteEventResult.error ??
+            pasteCommandResult.error ??
+            uploadResult.error ??
+            'AUTO_ATTACH_FAILED'
         };
   },
 
@@ -144,7 +150,13 @@ async function tryGeminiUpload(file: File): Promise<AttachResult> {
   await sleep(150);
 
   const menuResult = await attachToGeminiFileInputs(file);
-  return menuResult.ok ? menuResult : { ok: false, method: 'file-input', error: menuResult.error ?? directResult.error ?? 'GEMINI_UPLOAD_INPUT_NOT_FOUND' };
+  return menuResult.ok
+    ? menuResult
+    : {
+        ok: false,
+        method: 'file-input',
+        error: menuResult.error ?? directResult.error ?? 'GEMINI_UPLOAD_INPUT_NOT_FOUND'
+      };
 }
 
 async function attachToGeminiFileInputs(file: File): Promise<AttachResult> {
@@ -203,7 +215,9 @@ async function waitForGeminiUploadOutcome(beforeCount: number, beforeText: strin
 }
 
 async function openGeminiAttachmentEntryPoint(): Promise<void> {
-  const namedButton = visibleActionCandidates().find((candidate) => attachmentButtonTextPattern.test(getElementName(candidate)));
+  const namedButton = visibleActionCandidates().find((candidate) =>
+    attachmentButtonTextPattern.test(getElementName(candidate))
+  );
   if (namedButton) {
     namedButton.click();
     return;
@@ -226,14 +240,7 @@ async function clickGeminiUploadMenuItem(): Promise<void> {
 
 function visibleActionCandidates(): HTMLElement[] {
   return querySelectorCandidates<HTMLElement>(
-    [
-      'button',
-      '[role="button"]',
-      '[role="menuitem"]',
-      'input[type="button"]',
-      'div[aria-label]',
-      'span[aria-label]'
-    ],
+    ['button', '[role="button"]', '[role="menuitem"]', 'input[type="button"]', 'div[aria-label]', 'span[aria-label]'],
     { visibleOnly: true }
   ).filter(isVisible);
 }
@@ -252,5 +259,12 @@ function getElementName(element: HTMLElement): string {
 
 function acceptsGeminiImage(input: HTMLInputElement): boolean {
   const accept = input.accept.trim().toLowerCase();
-  return !accept || accept.includes('image') || accept.includes('.png') || accept.includes('.jpg') || accept.includes('.jpeg') || accept.includes('.webp');
+  return (
+    !accept ||
+    accept.includes('image') ||
+    accept.includes('.png') ||
+    accept.includes('.jpg') ||
+    accept.includes('.jpeg') ||
+    accept.includes('.webp')
+  );
 }

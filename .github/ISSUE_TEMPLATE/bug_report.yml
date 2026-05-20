@@ -1,0 +1,57 @@
+name: Bug report
+description: Report a reproducible extension bug.
+title: '[Bug]: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting a problem. Do not include private screenshots, tokens, cookies, or chat content.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target site
+      options:
+        - ChatGPT
+        - Claude
+        - Gemini
+        - Doubao
+        - Popup/options
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Copy a screenshot to the clipboard.
+        2. Press ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and extension version
+      placeholder: Chrome 126, extension 0.1.0
+    validations:
+      required: true

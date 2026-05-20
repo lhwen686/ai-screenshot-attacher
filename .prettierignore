@@ -1,8 +1,11 @@
 node_modules/
 dist/
 release/
+coverage/
+.git/
 .vs/
 .vscode/
-coverage/
 *.log
 *.tsbuildinfo
+package-lock.json
+AGENTS.md

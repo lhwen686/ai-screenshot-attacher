@@ -253,7 +253,14 @@ export async function tryAttachViaPasteRelaxed(
     });
     target.dispatchEvent(event);
 
-    if (await waitForRelaxedAttachmentSuccess(previewSelectors, beforeSnapshot, options.timeoutMs ?? 8000, options.successTextPatterns)) {
+    if (
+      await waitForRelaxedAttachmentSuccess(
+        previewSelectors,
+        beforeSnapshot,
+        options.timeoutMs ?? 8000,
+        options.successTextPatterns
+      )
+    ) {
       return { ok: true, method: 'paste-event' };
     }
   } catch {
@@ -281,7 +288,14 @@ export async function tryPasteClipboardViaCommand(
       return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_REJECTED' };
     }
 
-    if (await waitForRelaxedAttachmentSuccess(previewSelectors, beforeSnapshot, options.timeoutMs ?? 4500, options.successTextPatterns)) {
+    if (
+      await waitForRelaxedAttachmentSuccess(
+        previewSelectors,
+        beforeSnapshot,
+        options.timeoutMs ?? 4500,
+        options.successTextPatterns
+      )
+    ) {
       return { ok: true, method: 'paste-command' };
     }
   } catch {

@@ -1,6 +1,6 @@
 import { AUTO_DEDUPE_STATE_KEY, AUTO_MONITOR_INTERVAL_MS, AI_TARGETS, USER_MESSAGES } from '../shared/constants';
 import type { ClipboardImagePayload, OffscreenMonitorResult } from '../clipboard/types';
-import type { AutoMonitorStatus, OperationResult } from '../shared/messages';
+import type { AutoMonitorStatus } from '../shared/messages';
 import { getSettings } from '../shared/settings';
 import { ensureOffscreenDocument, hasOffscreenDocument } from '../clipboard/offscreenClient';
 import { writeClipboardImage } from '../clipboard/writeClipboardImage';
@@ -110,7 +110,9 @@ export async function handleAutoClipboardImage(image: ClipboardImagePayload, fin
       return;
     }
 
-    const fallbackMessage = settings.writeBackOnFailure ? USER_MESSAGES.attachFallback : USER_MESSAGES.attachFallbackNoWrite;
+    const fallbackMessage = settings.writeBackOnFailure
+      ? USER_MESSAGES.attachFallback
+      : USER_MESSAGES.attachFallbackNoWrite;
     let finalMessage: string = fallbackMessage;
 
     if (settings.writeBackOnFailure) {
@@ -166,9 +168,7 @@ async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
     enabled: true,
     active: monitorResult.ok && monitorResult.active,
     targetCount,
-    message: monitorResult.ok
-      ? '自动粘贴模式运行中。'
-      : `自动粘贴模式启动失败：${monitorResult.message}`
+    message: monitorResult.ok ? '自动粘贴模式运行中。' : `自动粘贴模式启动失败：${monitorResult.message}`
   });
 }
 

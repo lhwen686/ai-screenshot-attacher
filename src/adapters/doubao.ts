@@ -11,7 +11,18 @@ import {
   waitForAnyElement
 } from '../content/domUtils';
 
-const uploadTextPatterns = [/uploading/i, /processing/i, /uploaded/i, /attached/i, /上传中/, /正在上传/, /处理中/, /已上传/, /已添加/, /上传成功/];
+const uploadTextPatterns = [
+  /uploading/i,
+  /processing/i,
+  /uploaded/i,
+  /attached/i,
+  /上传中/,
+  /正在上传/,
+  /处理中/,
+  /已上传/,
+  /已添加/,
+  /上传成功/
+];
 
 const selectors: AdapterSelectorSet = {
   fileInputs: [...GENERIC_FILE_INPUT_SELECTORS],
@@ -87,7 +98,12 @@ export const doubaoAdapter: AiTargetAdapter = {
       : {
           ok: false,
           method: 'clipboard-fallback',
-          error: fileInputResult.error ?? dropResult.error ?? pasteEventResult.error ?? pasteCommandResult.error ?? 'AUTO_ATTACH_FAILED'
+          error:
+            fileInputResult.error ??
+            dropResult.error ??
+            pasteEventResult.error ??
+            pasteCommandResult.error ??
+            'AUTO_ATTACH_FAILED'
         };
   },
 
@@ -239,7 +255,11 @@ function snapshotDoubaoAttachmentState(file: File): DoubaoAttachmentState {
   };
 }
 
-async function waitForDoubaoAttachmentSuccess(before: DoubaoAttachmentState, file: File, timeoutMs: number): Promise<boolean> {
+async function waitForDoubaoAttachmentSuccess(
+  before: DoubaoAttachmentState,
+  file: File,
+  timeoutMs: number
+): Promise<boolean> {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
@@ -254,7 +274,10 @@ async function waitForDoubaoAttachmentSuccess(before: DoubaoAttachmentState, fil
       return true;
     }
 
-    if (document.querySelectorAll('main [contenteditable="true"] img[src^="data:image"]').length > before.editorDataImageCount) {
+    if (
+      document.querySelectorAll('main [contenteditable="true"] img[src^="data:image"]').length >
+      before.editorDataImageCount
+    ) {
       return true;
     }
 
@@ -300,7 +323,14 @@ function focusEditableTarget(target: HTMLElement): void {
 
 function acceptsImage(input: HTMLInputElement): boolean {
   const accept = input.accept.trim().toLowerCase();
-  return !accept || accept.includes('image') || accept.includes('.png') || accept.includes('.jpg') || accept.includes('.jpeg') || accept.includes('.webp');
+  return (
+    !accept ||
+    accept.includes('image') ||
+    accept.includes('.png') ||
+    accept.includes('.jpg') ||
+    accept.includes('.jpeg') ||
+    accept.includes('.webp')
+  );
 }
 
 function documentBodyIncludes(text: string): boolean {

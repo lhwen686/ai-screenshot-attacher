@@ -86,6 +86,40 @@ The unpacked extension output is generated in `dist/`.
 
 构建后的可加载扩展目录会生成在 `dist/`。
 
+## Development / 开发
+
+Use Node 24 or newer, then install dependencies with:
+
+使用 Node 24 或更新版本，然后安装依赖：
+
+```bash
+npm ci
+```
+
+Run the full local quality gate before opening a pull request:
+
+提交 PR 前运行完整本地质量门禁：
+
+```bash
+npm run verify
+```
+
+This runs type checking, ESLint, Prettier checks, Vitest, and the production build.
+
+该命令会运行类型检查、ESLint、Prettier 检查、Vitest 和生产构建。
+
+Create a loadable extension zip with:
+
+生成可加载的扩展压缩包：
+
+```bash
+npm run package
+```
+
+The zip is written to `release/`.
+
+压缩包会生成到 `release/`。
+
 ## Load in Chrome / 在 Chrome 中加载
 
 1. Open `chrome://extensions`.
@@ -93,10 +127,10 @@ The unpacked extension output is generated in `dist/`.
 3. Click Load unpacked.
 4. Select the `dist/` folder.
 
-1. 打开 `chrome://extensions`。
-2. 开启开发者模式。
-3. 点击“加载已解压的扩展程序”。
-4. 选择 `dist/` 文件夹。
+5. 打开 `chrome://extensions`。
+6. 开启开发者模式。
+7. 点击“加载已解压的扩展程序”。
+8. 选择 `dist/` 文件夹。
 
 ## Load in Microsoft Edge / 在 Microsoft Edge 中加载
 
@@ -105,10 +139,10 @@ The unpacked extension output is generated in `dist/`.
 3. Click Load unpacked.
 4. Select the `dist/` folder.
 
-1. 打开 `edge://extensions`。
-2. 开启开发者模式。
-3. 点击“加载已解压的扩展程序”。
-4. 选择 `dist/` 文件夹。
+5. 打开 `edge://extensions`。
+6. 开启开发者模式。
+7. 点击“加载已解压的扩展程序”。
+8. 选择 `dist/` 文件夹。
 
 ## Shortcuts / 快捷键
 
@@ -140,17 +174,17 @@ If a shortcut is already used by the browser or OS, change it at `chrome://exten
 10. Confirm the popup shows `未检测到剪贴板图片，请先截图后再试。`
 11. If automatic attachment fails, confirm the input is focused and the screenshot remains available for manual paste.
 
-1. 使用 `Win+Shift+S` 截图，并确保截图进入剪贴板。
-2. 按 `Alt+Shift+1`。
-3. 确认 ChatGPT 打开或被激活。
-4. 确认截图出现在输入框附件区。
-5. 确认插件不会自动发送消息。
-6. 使用 `Alt+Shift+2` 测试 Claude。
-7. 使用 `Alt+Shift+3` 测试 Gemini。
-8. 使用 popup 里的豆包按钮测试，或把豆包设为默认目标后按 `Alt+Shift+A`。
-9. 清空剪贴板或只复制文本，再触发插件。
-10. 确认 popup 显示 `未检测到剪贴板图片，请先截图后再试。`
-11. 如果自动附加失败，确认输入框被聚焦，且截图仍可手动粘贴。
+12. 使用 `Win+Shift+S` 截图，并确保截图进入剪贴板。
+13. 按 `Alt+Shift+1`。
+14. 确认 ChatGPT 打开或被激活。
+15. 确认截图出现在输入框附件区。
+16. 确认插件不会自动发送消息。
+17. 使用 `Alt+Shift+2` 测试 Claude。
+18. 使用 `Alt+Shift+3` 测试 Gemini。
+19. 使用 popup 里的豆包按钮测试，或把豆包设为默认目标后按 `Alt+Shift+A`。
+20. 清空剪贴板或只复制文本，再触发插件。
+21. 确认 popup 显示 `未检测到剪贴板图片，请先截图后再试。`
+22. 如果自动附加失败，确认输入框被聚焦，且截图仍可手动粘贴。
 
 ## Automatic Mode / 自动模式
 
@@ -228,13 +262,13 @@ Open the extension options page to change:
 6. Add popup/options labels if needed.
 7. Run `npm run build` and manually test the target site.
 
-1. 在 `src/shared/constants.ts` 中新增目标 id。
-2. 创建 `src/adapters/newTarget.ts`。
-3. 实现 `AiTargetAdapter`，包括 `detect`、`waitUntilReady`、`attachImage`，以及可选的 `focusInput`。
-4. 添加文件输入框、文本输入框、拖放区域、附件预览的候选 selector。
-5. 在 `src/adapters/registry.ts` 中注册 adapter。
-6. 如有需要，补充 popup/options 显示标签。
-7. 运行 `npm run build`，并手动测试目标站点。
+8. 在 `src/shared/constants.ts` 中新增目标 id。
+9. 创建 `src/adapters/newTarget.ts`。
+10. 实现 `AiTargetAdapter`，包括 `detect`、`waitUntilReady`、`attachImage`，以及可选的 `focusInput`。
+11. 添加文件输入框、文本输入框、拖放区域、附件预览的候选 selector。
+12. 在 `src/adapters/registry.ts` 中注册 adapter。
+13. 如有需要，补充 popup/options 显示标签。
+14. 运行 `npm run build`，并手动测试目标站点。
 
 ## Reference / 参考
 

@@ -1,0 +1,43 @@
+name: Adapter breakage
+description: Report a target AI site frontend change that broke attachment.
+title: '[Adapter]: '
+labels: ['adapter']
+body:
+  - type: markdown
+    attributes:
+      value: Target AI sites change often. Please avoid sharing private screenshots or chat content.
+  - type: dropdown
+    id: target
+    attributes:
+      label: Broken target
+      options:
+        - ChatGPT
+        - Claude
+        - Gemini
+        - Doubao
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - Manual shortcut
+        - Popup button
+        - Automatic mode
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What changed?
+      description: Describe the visible behavior, attachment chip state, and any extension popup message.
+    validations:
+      required: true
+  - type: textarea
+    id: manual_fallback
+    attributes:
+      label: Manual fallback
+      description: Did Ctrl+V / Cmd+V still work after the extension focused the input?
+    validations:
+      required: true

@@ -12,15 +12,7 @@
     "service_worker": "src/background/serviceWorker.js",
     "type": "module"
   },
-  "permissions": [
-    "activeTab",
-    "tabs",
-    "scripting",
-    "storage",
-    "clipboardRead",
-    "clipboardWrite",
-    "offscreen"
-  ],
+  "permissions": ["activeTab", "tabs", "scripting", "storage", "clipboardRead", "clipboardWrite", "offscreen"],
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://claude.ai/*",

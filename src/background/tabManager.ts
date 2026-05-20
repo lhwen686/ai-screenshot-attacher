@@ -344,7 +344,7 @@ async function executeGeminiClipboardPasteRuntime(tabId: number): Promise<Attach
         focusEditable(target);
         await new Promise((resolve) => window.setTimeout(resolve, 100));
 
-        let didPaste = false;
+        let didPaste: boolean;
         try {
           didPaste = document.execCommand('paste');
         } catch {
@@ -422,7 +422,11 @@ async function injectAttachRuntimeWithRetry(
   return false;
 }
 
-export async function showToastOnPage(tabId: number, message: string, variant: 'success' | 'warning' | 'error' | 'info'): Promise<void> {
+export async function showToastOnPage(
+  tabId: number,
+  message: string,
+  variant: 'success' | 'warning' | 'error' | 'info'
+): Promise<void> {
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
@@ -464,7 +468,10 @@ export async function showToastOnPage(tabId: number, message: string, variant: '
   }
 }
 
-export async function showToastOnActivePage(message: string, variant: 'success' | 'warning' | 'error' | 'info'): Promise<void> {
+export async function showToastOnActivePage(
+  message: string,
+  variant: 'success' | 'warning' | 'error' | 'info'
+): Promise<void> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id || !tab.url || !/^https?:\/\//.test(tab.url)) {
     return;
