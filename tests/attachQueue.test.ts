@@ -3,6 +3,8 @@ import type { ClipboardImagePayload, ClipboardReadResult } from '../src/clipboar
 
 const mocks = vi.hoisted(() => ({
   executeAttachRuntime: vi.fn(),
+  executeClipboardPasteRuntime: vi.fn(),
+  writeClipboardImage: vi.fn(),
   state: {
     resolveManualRead: undefined as ((result: ClipboardReadResult) => void) | undefined
   }
@@ -25,7 +27,7 @@ vi.mock('../src/clipboard/readClipboardImage', () => ({
 }));
 
 vi.mock('../src/clipboard/writeClipboardImage', () => ({
-  writeClipboardImage: vi.fn(async () => ({ ok: true }))
+  writeClipboardImage: mocks.writeClipboardImage
 }));
 
 vi.mock('../src/shared/settings', () => ({
@@ -41,6 +43,7 @@ vi.mock('../src/shared/settings', () => ({
 
 vi.mock('../src/background/tabManager', () => ({
   executeAttachRuntime: mocks.executeAttachRuntime,
+  executeClipboardPasteRuntime: mocks.executeClipboardPasteRuntime,
   getBestOpenTargetTabForAuto: vi.fn(async () => ({ targetId: 'chatgpt', tab: { id: 2 } })),
   getOrCreateTargetTab: vi.fn(async () => ({ id: 1 })),
   showToastOnActivePage: vi.fn(async () => undefined),
@@ -51,7 +54,11 @@ describe('attach queue', () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.executeAttachRuntime.mockReset();
+    mocks.executeClipboardPasteRuntime.mockReset();
+    mocks.writeClipboardImage.mockReset();
     mocks.executeAttachRuntime.mockResolvedValue({ ok: true, method: 'paste-event', confidence: 'confirmed' });
+    mocks.executeClipboardPasteRuntime.mockResolvedValue({ ok: false, method: 'paste-command', error: 'PASTE_COMMAND_FAILED' });
+    mocks.writeClipboardImage.mockResolvedValue({ ok: true });
     mocks.state.resolveManualRead = undefined;
     globalThis.chrome = {
       action: {
@@ -96,5 +103,41 @@ describe('attach queue', () => {
 
     const autoPayload = mocks.executeAttachRuntime.mock.calls[1][1];
     expect(autoPayload.image.fileName).toBe('new.png');
+  });
+
+  it('tries a real clipboard paste command after inconclusive automatic attach failure', async () => {
+    mocks.executeAttachRuntime.mockResolvedValue({
+      ok: false,
+      method: 'paste-event',
+      error: 'PASTE_EVENT_NO_CONFIRMED_ATTACHMENT',
+      confidence: 'unconfirmed'
+    });
+    mocks.executeClipboardPasteRuntime.mockResolvedValue({
+      ok: true,
+      method: 'paste-command',
+      confidence: 'confirmed'
+    });
+
+    const { enqueueManualAttachment } = await import('../src/background/attachQueue');
+    const manualPromise = enqueueManualAttachment('chatgpt');
+
+    await vi.waitFor(() => {
+      expect(mocks.state.resolveManualRead).toBeTypeOf('function');
+    });
+
+    mocks.state.resolveManualRead?.({
+      ok: true,
+      image: image('manual.png'),
+      source: 'async-clipboard'
+    });
+
+    const result = await manualPromise;
+    expect(mocks.writeClipboardImage).toHaveBeenCalledOnce();
+    expect(mocks.executeClipboardPasteRuntime).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({
+      ok: true,
+      method: 'paste-command',
+      targetId: 'chatgpt'
+    });
   });
 });

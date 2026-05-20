@@ -6,7 +6,8 @@ import { getErrorMessage, type AttachErrorType } from '../shared/errors';
 import { logger } from '../shared/logger';
 import type { AttachQueueStatus, OperationResult } from '../shared/messages';
 import { getSettings, type AppSettings } from '../shared/settings';
-import { executeAttachRuntime, getBestOpenTargetTabForAuto, getOrCreateTargetTab, showToastOnActivePage, showToastOnPage } from './tabManager';
+import { executeAttachRuntime, executeClipboardPasteRuntime, getBestOpenTargetTabForAuto, getOrCreateTargetTab, showToastOnActivePage, showToastOnPage } from './tabManager';
+import type { AttachResult } from '../adapters/types';
 
 interface ManualAttachJob {
   kind: 'manual';
@@ -201,10 +202,35 @@ async function attachImageToTarget(options: {
       return result;
     }
 
-    const finalMessage = await preserveClipboardFallback(options.image, options.settings);
+    const clipboardFallback = await preserveClipboardFallback(options.image, options.settings);
+    if ((clipboardFallback.wrote || !options.settings.writeBackOnFailure) && shouldTryPasteCommandFallback(attachResult)) {
+      const pasteCommandResult = await executeClipboardPasteRuntime(tabId, {
+        targetId: options.targetId,
+        image: options.image,
+        settings: {
+          showPageToast: options.settings.showPageToast,
+          writeBackOnFailure: options.settings.writeBackOnFailure,
+          debugLogs: options.settings.debugLogs
+        }
+      });
+
+      if (pasteCommandResult.ok && pasteCommandResult.confidence !== 'unconfirmed') {
+        const result: OperationResult = {
+          ok: true,
+          targetId: options.targetId,
+          targetName: target.name,
+          method: pasteCommandResult.method,
+          message: USER_MESSAGES.attachSuccess,
+          trigger: options.trigger,
+          at: new Date().toISOString()
+        };
+        await recordOperationResult(result);
+        return result;
+      }
+    }
 
     if (options.settings.showPageToast) {
-      await showToastOnPage(tabId, finalMessage, 'error');
+      await showToastOnPage(tabId, clipboardFallback.message, 'error');
     }
 
     const result: OperationResult = {
@@ -213,7 +239,7 @@ async function attachImageToTarget(options: {
       targetName: target.name,
       method: 'clipboard-fallback',
       error: attachResult.error ?? 'AUTO_ATTACH_FAILED',
-      message: finalMessage,
+      message: clipboardFallback.message,
       trigger: options.trigger,
       at: new Date().toISOString()
     };
@@ -239,14 +265,20 @@ async function attachImageToTarget(options: {
   }
 }
 
-async function preserveClipboardFallback(image: ClipboardImagePayload, settings: AppSettings): Promise<string> {
+async function preserveClipboardFallback(image: ClipboardImagePayload, settings: AppSettings): Promise<{ message: string; wrote: boolean }> {
   const fallbackMessage = settings.writeBackOnFailure ? USER_MESSAGES.attachFallback : USER_MESSAGES.attachFallbackNoWrite;
   if (!settings.writeBackOnFailure) {
-    return fallbackMessage;
+    return { message: fallbackMessage, wrote: false };
   }
 
   const writeResult = await writeClipboardImage(image);
-  return writeResult.ok ? fallbackMessage : `${fallbackMessage}（写回剪贴板失败，但原剪贴板通常仍保留截图。）`;
+  return writeResult.ok
+    ? { message: fallbackMessage, wrote: true }
+    : { message: `${fallbackMessage}（写回剪贴板失败，但原剪贴板通常仍保留截图。）`, wrote: false };
+}
+
+function shouldTryPasteCommandFallback(result: AttachResult): boolean {
+  return result.confidence !== 'confirmed' && result.error !== 'ATTACHMENT_UNCONFIRMED';
 }
 
 async function getConfiguredSettings(): Promise<AppSettings> {

@@ -192,10 +192,7 @@ function scoreCandidate(tab: chrome.tabs.Tab, chromeWindow: chrome.windows.Windo
 
 export async function executeAttachRuntime(tabId: number, payload: AttachRuntimePayload): Promise<AttachResult> {
   try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: [ATTACH_RUNTIME_FILE]
-    });
+    await injectAttachRuntime(tabId);
 
     const results = await chrome.scripting.executeScript({
       target: { tabId },
@@ -220,6 +217,42 @@ export async function executeAttachRuntime(tabId: number, payload: AttachRuntime
     logger.error('script injection failed', { error });
     return { ok: false, method: 'clipboard-fallback', error: 'SCRIPT_INJECTION_FAILED' };
   }
+}
+
+export async function executeClipboardPasteRuntime(tabId: number, payload: AttachRuntimePayload): Promise<AttachResult> {
+  try {
+    await injectAttachRuntime(tabId);
+
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      args: [payload],
+      func: async (runtimePayload: AttachRuntimePayload) => {
+        const runtime = window.__AI_SCREENSHOT_ATTACHER__;
+        if (!runtime?.pasteFromClipboard) {
+          return { ok: false, method: 'paste-command', error: 'SCRIPT_INJECTION_FAILED' };
+        }
+        return runtime.pasteFromClipboard(runtimePayload);
+      }
+    });
+
+    return (
+      (results[0]?.result as AttachResult | undefined) ?? {
+        ok: false,
+        method: 'paste-command',
+        error: 'SCRIPT_INJECTION_FAILED'
+      }
+    );
+  } catch (error) {
+    logger.error('clipboard paste command failed', { error });
+    return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_FAILED' };
+  }
+}
+
+async function injectAttachRuntime(tabId: number): Promise<void> {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: [ATTACH_RUNTIME_FILE]
+  });
 }
 
 export async function showToastOnPage(tabId: number, message: string, variant: 'success' | 'warning' | 'error' | 'info'): Promise<void> {

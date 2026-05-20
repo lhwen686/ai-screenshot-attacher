@@ -288,6 +288,36 @@ export async function tryAttachViaPasteRelaxed(
   }
 }
 
+export async function tryPasteClipboardViaCommand(
+  inputSelectors: string[],
+  previewSelectors: string[],
+  options: { timeoutMs?: number; successTextPatterns?: RegExp[]; progressTextPatterns?: RegExp[]; failureTextPatterns?: RegExp[] } = {}
+): Promise<AttachResult> {
+  const target = findFirstCandidate<HTMLElement>(inputSelectors, { visibleOnly: true });
+  if (!target) {
+    return { ok: false, method: 'paste-command', error: 'INPUT_NOT_FOUND' };
+  }
+
+  try {
+    const root = findAttachmentObservationRoot(target);
+    const beforeSnapshot = snapshotAttachmentState(previewSelectors, root);
+    target.focus({ preventScroll: false });
+    const didPaste = document.execCommand('paste');
+    if (!didPaste) {
+      return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_REJECTED' };
+    }
+
+    return waitForAttachmentOutcome('paste-command', previewSelectors, beforeSnapshot, root, undefined, {
+      timeoutMs: options.timeoutMs ?? 5000,
+      successTextPatterns: options.successTextPatterns,
+      progressTextPatterns: options.progressTextPatterns,
+      failureTextPatterns: options.failureTextPatterns
+    });
+  } catch {
+    return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_FAILED' };
+  }
+}
+
 export async function tryAttachViaDrop(
   file: File,
   dropSelectors: string[],
@@ -401,7 +431,7 @@ export async function waitForAttachmentOutcome(
   selectors: string[],
   before: AttachmentStateSnapshot,
   root: Element,
-  file: File,
+  file: File | undefined,
   options: {
     timeoutMs: number;
     successTextPatterns?: RegExp[];
@@ -478,7 +508,7 @@ export async function waitForAttachmentOutcome(
         };
       }
 
-      if (!before.hasFileName && current.hasFileName) {
+      if (file && !before.hasFileName && current.hasFileName) {
         return {
           ok: true,
           method,

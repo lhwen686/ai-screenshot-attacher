@@ -41,6 +41,7 @@ export interface AttachRuntimePayload {
 
 export interface AttachRuntimeGlobal {
   run(payload: AttachRuntimePayload): Promise<AttachResult>;
+  pasteFromClipboard(payload: AttachRuntimePayload): Promise<AttachResult>;
 }
 
 export type PopupAttachMessage = {

@@ -15,9 +15,53 @@ declare global {
 async function run(payload: AttachRuntimePayload): Promise<AttachResult> {
   logger.configure({ debug: payload.settings.debugLogs });
 
+  const adapter = await getReadyAdapter(payload);
+  if (!adapter.ok) {
+    return adapter.result;
+  }
+
+  const file = dataUrlToFile(payload.image);
+  const result = await adapter.value.attachImage(file);
+
+  if (result.ok) {
+    showSuccessToastIfEnabled(payload);
+    return result;
+  }
+
+  await adapter.value.focusInput?.();
+  return result;
+}
+
+async function pasteFromClipboard(payload: AttachRuntimePayload): Promise<AttachResult> {
+  logger.configure({ debug: payload.settings.debugLogs });
+
+  const adapter = await getReadyAdapter(payload);
+  if (!adapter.ok) {
+    return adapter.result;
+  }
+
+  if (!adapter.value.pasteClipboardImage) {
+    await adapter.value.focusInput?.();
+    return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_UNSUPPORTED' };
+  }
+
+  const result = await adapter.value.pasteClipboardImage();
+  if (result.ok) {
+    showSuccessToastIfEnabled(payload);
+    return result;
+  }
+
+  await adapter.value.focusInput?.();
+  return result;
+}
+
+async function getReadyAdapter(payload: AttachRuntimePayload) {
   const adapter = getAdapterById(payload.targetId) ?? detectAdapter();
   if (!adapter || !adapter.detect()) {
-    return { ok: false, method: 'clipboard-fallback', error: 'ADAPTER_NOT_FOUND' };
+    return {
+      ok: false as const,
+      result: { ok: false, method: 'clipboard-fallback', error: 'ADAPTER_NOT_FOUND' } satisfies AttachResult
+    };
   }
 
   logger.debug('adapter selected', { targetId: payload.targetId, adapter: adapter.id });
@@ -25,21 +69,19 @@ async function run(payload: AttachRuntimePayload): Promise<AttachResult> {
   const ready = await adapter.waitUntilReady(15000);
   if (!ready) {
     await adapter.focusInput?.();
-    return { ok: false, method: 'clipboard-fallback', error: 'TARGET_NOT_READY' };
+    return {
+      ok: false as const,
+      result: { ok: false, method: 'clipboard-fallback', error: 'TARGET_NOT_READY' } satisfies AttachResult
+    };
   }
 
-  const file = dataUrlToFile(payload.image);
-  const result = await adapter.attachImage(file);
-
-  if (result.ok) {
-    if (payload.settings.showPageToast) {
-      showToast(USER_MESSAGES.attachSuccess, 'success');
-    }
-    return result;
-  }
-
-  await adapter.focusInput?.();
-  return result;
+  return { ok: true as const, value: adapter };
 }
 
-window.__AI_SCREENSHOT_ATTACHER__ = { run };
+function showSuccessToastIfEnabled(payload: AttachRuntimePayload): void {
+  if (payload.settings.showPageToast) {
+    showToast(USER_MESSAGES.attachSuccess, 'success');
+  }
+}
+
+window.__AI_SCREENSHOT_ATTACHER__ = { run, pasteFromClipboard };

@@ -6,6 +6,7 @@ import {
   GENERIC_TEXT_INPUT_SELECTORS,
   focusFirstInput,
   tryAttachViaPaste,
+  tryPasteClipboardViaCommand,
   waitForAnyElement
 } from '../content/domUtils';
 
@@ -60,6 +61,12 @@ export const claudeAdapter: AiTargetAdapter = {
           method: result.method ?? 'clipboard-fallback',
           error: result.error ?? 'AUTO_ATTACH_FAILED'
         };
+  },
+
+  async pasteClipboardImage(): Promise<AttachResult> {
+    return tryPasteClipboardViaCommand(selectors.textInputs, selectors.attachmentPreviews, {
+      timeoutMs: 7000
+    });
   },
 
   async focusInput() {

@@ -9,6 +9,7 @@ import {
   tryAttachViaDrop,
   tryAttachViaFileInput,
   tryAttachViaPaste,
+  tryPasteClipboardViaCommand,
   waitForAnyElement
 } from '../content/domUtils';
 
@@ -61,6 +62,12 @@ export const chatgptAdapter: AiTargetAdapter = {
     }
 
     return { ok: false, method: 'clipboard-fallback', error: 'AUTO_ATTACH_FAILED' };
+  },
+
+  async pasteClipboardImage(): Promise<AttachResult> {
+    return tryPasteClipboardViaCommand(selectors.textInputs, selectors.attachmentPreviews, {
+      timeoutMs: 7000
+    });
   },
 
   async focusInput() {

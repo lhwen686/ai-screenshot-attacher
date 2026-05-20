@@ -6,6 +6,7 @@ import {
   GENERIC_TEXT_INPUT_SELECTORS,
   focusFirstInput,
   tryAttachViaPasteRelaxed,
+  tryPasteClipboardViaCommand,
   waitForAnyElement
 } from '../content/domUtils';
 
@@ -74,6 +75,13 @@ export const geminiAdapter: AiTargetAdapter = {
           method: result.method ?? 'clipboard-fallback',
           error: result.error ?? 'AUTO_ATTACH_FAILED'
         };
+  },
+
+  async pasteClipboardImage(): Promise<AttachResult> {
+    return tryPasteClipboardViaCommand(selectors.textInputs, selectors.attachmentPreviews, {
+      timeoutMs: 9000,
+      progressTextPatterns: [/uploading/i, /processing/i, /上传中/, /正在上传/, /处理中/]
+    });
   },
 
   async focusInput() {
