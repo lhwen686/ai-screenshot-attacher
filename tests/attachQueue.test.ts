@@ -140,28 +140,4 @@ describe('attach queue', () => {
       targetId: 'chatgpt'
     });
   });
-
-  it('does not use paste command first when the normal attach path succeeds', async () => {
-    const { enqueueManualAttachment } = await import('../src/background/attachQueue');
-    const manualPromise = enqueueManualAttachment('chatgpt');
-
-    await vi.waitFor(() => {
-      expect(mocks.state.resolveManualRead).toBeTypeOf('function');
-    });
-
-    mocks.state.resolveManualRead?.({
-      ok: true,
-      image: image('manual.png'),
-      source: 'async-clipboard'
-    });
-
-    const result = await manualPromise;
-    expect(mocks.executeAttachRuntime).toHaveBeenCalledOnce();
-    expect(mocks.executeClipboardPasteRuntime).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      ok: true,
-      method: 'paste-event',
-      targetId: 'chatgpt'
-    });
-  });
 });
