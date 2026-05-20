@@ -156,7 +156,7 @@ async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
       active: false,
       targetCount,
       message: settings.autoAttachEnabled
-        ? '自动粘贴模式已开启，等待打开 ChatGPT / Claude / Gemini。'
+        ? '自动粘贴模式已开启，等待打开 ChatGPT / Claude / Gemini / 豆包。'
         : USER_MESSAGES.autoMonitorDisabled
     });
   }

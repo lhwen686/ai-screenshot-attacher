@@ -1,6 +1,6 @@
 export const EXTENSION_NAME = 'AI Screenshot Attacher';
 
-export type TargetId = 'chatgpt' | 'claude' | 'gemini';
+export type TargetId = 'chatgpt' | 'claude' | 'gemini' | 'doubao';
 
 export interface TargetDefinition {
   id: TargetId;
@@ -31,6 +31,13 @@ export const AI_TARGETS: Record<TargetId, TargetDefinition> = {
     defaultUrl: 'https://gemini.google.com/',
     urlPatterns: ['https://gemini.google.com/*'],
     hostnames: ['gemini.google.com']
+  },
+  doubao: {
+    id: 'doubao',
+    name: '豆包',
+    defaultUrl: 'https://www.doubao.com/chat/',
+    urlPatterns: ['https://doubao.com/*', 'https://www.doubao.com/*'],
+    hostnames: ['doubao.com', 'www.doubao.com']
   }
 };
 

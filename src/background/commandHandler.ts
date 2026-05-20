@@ -15,6 +15,8 @@ export async function handleCommand(command: string): Promise<OperationResult> {
       return attachToTarget('claude');
     case 'attach-to-gemini':
       return attachToTarget('gemini');
+    case 'attach-to-doubao':
+      return attachToTarget('doubao');
     case 'attach-to-default-ai':
     default:
       return attachToTarget();

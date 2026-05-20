@@ -1,8 +1,8 @@
 # AI Screenshot Attacher / AI 截图附加器
 
-Manifest V3 Chrome / Edge extension MVP for attaching the current system clipboard screenshot to ChatGPT, Claude, or Gemini. It never sends the AI message automatically.
+Manifest V3 Chrome / Edge extension MVP for attaching the current system clipboard screenshot to ChatGPT, Claude, Gemini, or Doubao. It never sends the AI message automatically.
 
-这是一个 Manifest V3 Chrome / Edge 浏览器扩展 MVP，用于把当前系统剪贴板里的截图附加到 ChatGPT、Claude 或 Gemini。插件不会自动发送 AI 消息。
+这是一个 Manifest V3 Chrome / Edge 浏览器扩展 MVP，用于把当前系统剪贴板里的截图附加到 ChatGPT、Claude、Gemini 或豆包。插件不会自动发送 AI 消息。
 
 ## Features / 功能
 
@@ -10,12 +10,14 @@ Manifest V3 Chrome / Edge extension MVP for attaching the current system clipboa
 - 仅在快捷键、弹窗按钮，或用户主动开启自动模式后读取剪贴板截图。
 - Open or activate the selected AI target tab when used manually.
 - 手动使用时会打开或激活指定 AI 目标页面。
-- Optional automatic mode: when enabled, detect new clipboard screenshots only while ChatGPT, Claude, or Gemini is already open.
-- 可选自动模式：开启后，仅在 ChatGPT、Claude 或 Gemini 已打开时检测新的剪贴板截图。
-- Reuse ChatGPT/Gemini/Claude pages opened as Chrome installed desktop app windows when Chrome exposes them to the extension.
-- 支持复用 Chrome “安装为应用”的 ChatGPT / Gemini / Claude 桌面窗口。
+- Optional automatic mode: when enabled, detect new clipboard screenshots only while ChatGPT, Claude, Gemini, or Doubao is already open.
+- 可选自动模式：开启后，仅在 ChatGPT、Claude、Gemini 或豆包已打开时检测新的剪贴板截图。
+- Reuse supported AI pages opened as Chrome installed desktop app windows when Chrome exposes them to the extension.
+- 支持复用 Chrome “安装为应用”的受支持 AI 桌面窗口。
 - Use site-specific attachment strategies, with paste-only paths for Claude and Gemini to avoid duplicate or invalid attachment chips.
 - 针对不同网站使用不同附加策略；Claude 和 Gemini 使用 paste-only 路径，避免重复附件或无效附件卡片。
+- Doubao starts with real clipboard paste, then falls back to synthetic paste, drop, and file input strategies.
+- 豆包会优先尝试真实剪贴板粘贴，然后回退到合成 paste、drop 和 file input 策略。
 - On failure, optionally write the image back to the clipboard and focus the AI input box for manual `Ctrl+V` / `Cmd+V`.
 - 自动附加失败时，可选择把图片写回剪贴板并聚焦 AI 输入框，便于手动 `Ctrl+V` / `Cmd+V`。
 - Adapter architecture for adding more AI sites later.
@@ -61,6 +63,8 @@ Host permissions are limited to:
 - `https://chatgpt.com/*`
 - `https://claude.ai/*`
 - `https://gemini.google.com/*`
+- `https://doubao.com/*`
+- `https://www.doubao.com/*`
 
 No `<all_urls>` permission is required. Clipboard access is handled through an MV3 offscreen document because service workers do not have DOM clipboard access.
 
@@ -116,6 +120,7 @@ Default commands:
 - `Alt+Shift+1`: attach to ChatGPT. / 附加到 ChatGPT。
 - `Alt+Shift+2`: attach to Claude. / 附加到 Claude。
 - `Alt+Shift+3`: attach to Gemini. / 附加到 Gemini。
+- Doubao has no default shortcut because Chrome allows only 4 default command shortcuts per extension. Use the popup button, set Doubao as the default target, or free another shortcut in the browser shortcuts page and assign one manually. / 豆包没有默认快捷键，因为 Chrome 每个扩展最多允许 4 个默认命令快捷键。可使用 popup 按钮、把豆包设为默认目标，或在浏览器快捷键页面释放其他快捷键后手动分配。
 
 If a shortcut is already used by the browser or OS, change it at `chrome://extensions/shortcuts` or `edge://extensions/shortcuts`.
 
@@ -130,9 +135,10 @@ If a shortcut is already used by the browser or OS, change it at `chrome://exten
 5. Confirm no message is sent automatically.
 6. Repeat with `Alt+Shift+2` for Claude.
 7. Repeat with `Alt+Shift+3` for Gemini.
-8. Clear the clipboard or copy text only, then trigger the extension.
-9. Confirm the popup shows `未检测到剪贴板图片，请先截图后再试。`
-10. If automatic attachment fails, confirm the input is focused and the screenshot remains available for manual paste.
+8. Repeat with the popup Doubao button or set Doubao as the default target and press `Alt+Shift+A`.
+9. Clear the clipboard or copy text only, then trigger the extension.
+10. Confirm the popup shows `未检测到剪贴板图片，请先截图后再试。`
+11. If automatic attachment fails, confirm the input is focused and the screenshot remains available for manual paste.
 
 1. 使用 `Win+Shift+S` 截图，并确保截图进入剪贴板。
 2. 按 `Alt+Shift+1`。
@@ -141,9 +147,10 @@ If a shortcut is already used by the browser or OS, change it at `chrome://exten
 5. 确认插件不会自动发送消息。
 6. 使用 `Alt+Shift+2` 测试 Claude。
 7. 使用 `Alt+Shift+3` 测试 Gemini。
-8. 清空剪贴板或只复制文本，再触发插件。
-9. 确认 popup 显示 `未检测到剪贴板图片，请先截图后再试。`
-10. 如果自动附加失败，确认输入框被聚焦，且截图仍可手动粘贴。
+8. 使用 popup 里的豆包按钮测试，或把豆包设为默认目标后按 `Alt+Shift+A`。
+9. 清空剪贴板或只复制文本，再触发插件。
+10. 确认 popup 显示 `未检测到剪贴板图片，请先截图后再试。`
+11. 如果自动附加失败，确认输入框被聚焦，且截图仍可手动粘贴。
 
 ## Automatic Mode / 自动模式
 
@@ -155,8 +162,8 @@ When enabled:
 
 开启后：
 
-- If ChatGPT, Claude, or Gemini is already open, the extension starts a local offscreen clipboard monitor.
-- 如果 ChatGPT、Claude 或 Gemini 已打开，插件会启动本地 offscreen 剪贴板监控。
+- If ChatGPT, Claude, Gemini, or Doubao is already open, the extension starts a local offscreen clipboard monitor.
+- 如果 ChatGPT、Claude、Gemini 或豆包已打开，插件会启动本地 offscreen 剪贴板监控。
 - The monitor records the current clipboard image fingerprint on startup and does not attach that old image.
 - 启动时只记录当前剪贴板图片指纹，不会把旧图片立刻附加上去。
 - It checks for new clipboard images about every 1.5 seconds.
@@ -182,8 +189,8 @@ When enabled:
 - 如果自动附加失败，可能是目标网站前端拒绝了合成 paste/drop。插件会尝试聚焦输入框，并保留截图供手动 `Ctrl+V`。
 - Gemini uses paste-only attachment. Synthetic file input can create an invalid `文件中没有内容` chip on Gemini, so the adapter avoids that path entirely.
 - Gemini 使用 paste-only 附加。合成 file input 可能在 Gemini 中生成 `文件中没有内容` 的无效卡片，因此 adapter 会完全避开该路径。
-- If ChatGPT or Gemini is installed as a Chrome desktop app, keep it in the same Chrome profile where this extension is installed.
-- 如果 ChatGPT 或 Gemini 是 Chrome 桌面应用，请确保它和插件安装在同一个 Chrome profile 中。
+- If a supported AI site is installed as a Chrome desktop app, keep it in the same Chrome profile where this extension is installed.
+- 如果受支持 AI 站点是 Chrome 桌面应用，请确保它和插件安装在同一个 Chrome profile 中。
 
 ## Settings / 设置项
 
@@ -206,8 +213,8 @@ Open the extension options page to change:
 - 一些网站可能阻止合成 paste 或 drop 事件。此时插件会退回到保留剪贴板截图并聚焦输入框。
 - The browser may require clipboard permission before `navigator.clipboard.read()` works.
 - 浏览器可能要求授予剪贴板权限后，`navigator.clipboard.read()` 才能工作。
-- Automatic mode does not open AI pages. It only attaches to already open ChatGPT, Claude, or Gemini pages.
-- 自动模式不会打开 AI 页面，只会附加到已经打开的 ChatGPT、Claude 或 Gemini。
+- Automatic mode does not open AI pages. It only attaches to already open ChatGPT, Claude, Gemini, or Doubao pages.
+- 自动模式不会打开 AI 页面，只会附加到已经打开的 ChatGPT、Claude、Gemini 或豆包。
 - The extension does not bypass login, account checks, cookies, or site upload limits.
 - 插件不会绕过登录、账号检查、Cookie 或网站上传限制。
 

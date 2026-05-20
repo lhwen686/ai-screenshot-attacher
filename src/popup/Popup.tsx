@@ -5,7 +5,7 @@ import { AI_TARGETS, type TargetId } from '../shared/constants';
 import type { AutoMonitorStatus, OperationResult, UiMessage } from '../shared/messages';
 import { getSettings, type AppSettings } from '../shared/settings';
 
-const quickTargets: TargetId[] = ['chatgpt', 'claude', 'gemini'];
+const quickTargets: TargetId[] = ['chatgpt', 'claude', 'gemini', 'doubao'];
 
 function Popup() {
   const [settings, setSettings] = useState<AppSettings | null>(null);

@@ -27,7 +27,7 @@ function Options() {
       <header className="hero">
         <p className="eyebrow">AI Screenshot Attacher</p>
         <h1>设置</h1>
-        <p>手动模式只在你触发时运行；自动模式开启后，仅在三家 AI 页面已打开时检测新截图。</p>
+        <p>手动模式只在你触发时运行；自动模式开启后，仅在受支持 AI 页面已打开时检测新截图。</p>
       </header>
 
       <section className="settings-section">

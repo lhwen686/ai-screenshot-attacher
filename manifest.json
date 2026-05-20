@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AI Screenshot Attacher",
   "version": "0.1.0",
-  "description": "Attach the current clipboard screenshot to ChatGPT, Claude, or Gemini after explicit user action.",
+  "description": "Attach the current clipboard screenshot to ChatGPT, Claude, Gemini, or Doubao after explicit user action.",
   "action": {
     "default_popup": "src/popup/popup.html",
     "default_title": "AI Screenshot Attacher"
@@ -24,7 +24,9 @@
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://claude.ai/*",
-    "https://gemini.google.com/*"
+    "https://gemini.google.com/*",
+    "https://doubao.com/*",
+    "https://www.doubao.com/*"
   ],
   "commands": {
     "attach-to-default-ai": {
@@ -50,6 +52,9 @@
         "default": "Alt+Shift+3"
       },
       "description": "Attach clipboard screenshot to Gemini"
+    },
+    "attach-to-doubao": {
+      "description": "Attach clipboard screenshot to Doubao"
     }
   }
 }
