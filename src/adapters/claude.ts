@@ -65,7 +65,7 @@ export const claudeAdapter: AiTargetAdapter = {
 
   async pasteClipboardImage(): Promise<AttachResult> {
     return tryPasteClipboardViaCommand(selectors.textInputs, selectors.attachmentPreviews, {
-      timeoutMs: 3500
+      timeoutMs: 5000
     });
   },
 

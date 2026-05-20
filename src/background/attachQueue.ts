@@ -121,7 +121,6 @@ async function runManualJob(job: ManualAttachJob): Promise<OperationResult> {
 
   logger.info('manual attach requested', { targetId: finalTargetId });
 
-  const targetTabPromise = getOrCreateTargetTab(finalTargetId, settings).catch((error: unknown) => error);
   const clipboardResult = await readClipboardImage({ usePasteFallback: true });
   if (!clipboardResult.ok) {
     const result = operationFailure(finalTargetId, clipboardResult.error, clipboardResult.message, 'manual');
@@ -134,7 +133,6 @@ async function runManualJob(job: ManualAttachJob): Promise<OperationResult> {
     image: clipboardResult.image,
     settings,
     targetId: finalTargetId,
-    targetTabPromise,
     trigger: 'manual'
   });
 }
@@ -165,7 +163,6 @@ async function attachImageToTarget(options: {
   settings: AppSettings;
   targetId: TargetId;
   trigger: 'manual' | 'auto';
-  targetTabPromise?: Promise<chrome.tabs.Tab | unknown>;
   tabId?: number;
 }): Promise<OperationResult> {
   const target = AI_TARGETS[options.targetId];
@@ -173,33 +170,12 @@ async function attachImageToTarget(options: {
 
   try {
     if (!tabId) {
-      const tab = await getTargetTabFromOptions(options);
+      const tab = await getOrCreateTargetTab(options.targetId, options.settings);
       tabId = tab.id;
     }
 
     if (!tabId) {
       throw new Error('TARGET_TAB_FAILED');
-    }
-
-    let clipboardFallback: { message: string; wrote: boolean } | undefined;
-    let pasteCommandTried = false;
-
-    if (options.trigger === 'manual') {
-      clipboardFallback = await preserveClipboardFallback(options.image, options.settings);
-      const pasteCommandResult = await tryPasteCommandFallback(tabId, options);
-      pasteCommandTried = true;
-
-      if (pasteCommandResult.ok && pasteCommandResult.confidence !== 'unconfirmed') {
-        const result = operationSuccess(options.targetId, target.name, pasteCommandResult.method, options.trigger);
-        await recordOperationResult(result);
-        return result;
-      }
-
-      if (pasteCommandResult.error === 'ATTACHMENT_UNCONFIRMED') {
-        const result = operationAttachFailure(options.targetId, target.name, pasteCommandResult.error, clipboardFallback.message, options.trigger);
-        await recordOperationResult(result);
-        return result;
-      }
     }
 
     const attachResult = await executeAttachRuntime(tabId, {
@@ -218,8 +194,8 @@ async function attachImageToTarget(options: {
       return result;
     }
 
-    clipboardFallback ??= await preserveClipboardFallback(options.image, options.settings);
-    if (!pasteCommandTried && (clipboardFallback.wrote || !options.settings.writeBackOnFailure) && shouldTryPasteCommandFallback(attachResult)) {
+    const clipboardFallback = await preserveClipboardFallback(options.image, options.settings);
+    if ((clipboardFallback.wrote || !options.settings.writeBackOnFailure) && shouldTryPasteCommandFallback(attachResult)) {
       const pasteCommandResult = await tryPasteCommandFallback(tabId, options);
 
       if (pasteCommandResult.ok && pasteCommandResult.confidence !== 'unconfirmed') {
@@ -254,19 +230,6 @@ async function attachImageToTarget(options: {
     await recordOperationResult(result);
     return result;
   }
-}
-
-async function getTargetTabFromOptions(options: {
-  settings: AppSettings;
-  targetId: TargetId;
-  targetTabPromise?: Promise<chrome.tabs.Tab | unknown>;
-}): Promise<chrome.tabs.Tab> {
-  const tabOrError = options.targetTabPromise ? await options.targetTabPromise : await getOrCreateTargetTab(options.targetId, options.settings);
-  if (tabOrError instanceof Error) {
-    throw tabOrError;
-  }
-
-  return tabOrError as chrome.tabs.Tab;
 }
 
 async function tryPasteCommandFallback(

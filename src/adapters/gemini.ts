@@ -79,7 +79,7 @@ export const geminiAdapter: AiTargetAdapter = {
 
   async pasteClipboardImage(): Promise<AttachResult> {
     return tryPasteClipboardViaCommand(selectors.textInputs, selectors.attachmentPreviews, {
-      timeoutMs: 5000,
+      timeoutMs: 9000,
       progressTextPatterns: [/uploading/i, /processing/i, /上传中/, /正在上传/, /处理中/]
     });
   },
