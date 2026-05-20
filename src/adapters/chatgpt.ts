@@ -5,6 +5,7 @@ import {
   GENERIC_FILE_INPUT_SELECTORS,
   GENERIC_TEXT_INPUT_SELECTORS,
   focusFirstInput,
+  shouldStopAttachmentStrategy,
   tryAttachViaDrop,
   tryAttachViaFileInput,
   tryAttachViaPaste,
@@ -54,7 +55,7 @@ export const chatgptAdapter: AiTargetAdapter = {
       () => tryAttachViaDrop(file, selectors.dropTargets, selectors.attachmentPreviews)
     ]) {
       const result = await strategy();
-      if (result.ok || result.confidence === 'unconfirmed') {
+      if (shouldStopAttachmentStrategy(result)) {
         return result;
       }
     }

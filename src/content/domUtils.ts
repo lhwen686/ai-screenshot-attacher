@@ -82,6 +82,14 @@ export function sleep(ms: number): Promise<void> {
   });
 }
 
+export function shouldStopAttachmentStrategy(result: AttachResult): boolean {
+  if (result.ok || result.confidence === 'confirmed') {
+    return true;
+  }
+
+  return result.error === 'ATTACHMENT_UNCONFIRMED';
+}
+
 export function dataUrlToFile(image: ClipboardImagePayload): File {
   const [header, base64] = image.dataUrl.split(',');
   const mimeType = /data:([^;]+);base64/.exec(header)?.[1] ?? image.mimeType;
@@ -181,6 +189,7 @@ export async function tryAttachViaFileInput(
     (input) => input.type === 'file' && acceptsImage(input)
   );
 
+  let lastResult: AttachResult | undefined;
   for (const input of inputs) {
     try {
       const root = findAttachmentObservationRoot(input);
@@ -194,7 +203,8 @@ export async function tryAttachViaFileInput(
       const result = await waitForAttachmentOutcome('file-input', previewSelectors, beforeSnapshot, root, file, {
         timeoutMs: 5000
       });
-      if (result.ok || result.confidence === 'unconfirmed') {
+      lastResult = result;
+      if (shouldStopAttachmentStrategy(result)) {
         return result;
       }
     } catch {
@@ -202,7 +212,7 @@ export async function tryAttachViaFileInput(
     }
   }
 
-  return { ok: false, method: 'file-input', error: 'FILE_INPUT_ATTACH_FAILED' };
+  return lastResult ?? { ok: false, method: 'file-input', error: 'FILE_INPUT_ATTACH_FAILED' };
 }
 
 export async function tryAttachViaPaste(
