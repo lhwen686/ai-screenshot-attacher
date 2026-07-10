@@ -45,6 +45,7 @@ export function createChromeMock() {
       setTitle: vi.fn().mockResolvedValue(undefined)
     },
     runtime: {
+      getManifest: vi.fn(() => ({ version: '0.1.0' })),
       getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
       onInstalled: createListener(),
       onMessage: createListener(),
@@ -57,8 +58,8 @@ export function createChromeMock() {
         get: vi.fn((keys?: string | string[] | Record<string, unknown> | null) =>
           Promise.resolve(getFromStore(localStore, keys))
         ),
-        remove: vi.fn((key: string) => {
-          localStore.delete(key);
+        remove: vi.fn((keys: string | string[]) => {
+          (Array.isArray(keys) ? keys : [keys]).forEach((key) => localStore.delete(key));
           return Promise.resolve();
         }),
         set: vi.fn((values: Record<string, unknown>) => {

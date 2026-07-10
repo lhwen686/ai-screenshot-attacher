@@ -204,6 +204,177 @@ describe('offscreen clipboard fallback', () => {
     await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
   });
 
+  it('persists a normal monitor baseline so a later same-version reload can resume safely', async () => {
+    const read = vi.fn().mockResolvedValue([pngClipboardItem('existing baseline')]);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { read, write: vi.fn() }
+    });
+    vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(new Uint8Array([1]).buffer);
+
+    await import('../../src/offscreen/offscreen');
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0][0] as OffscreenMessageListener;
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, {
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 10
+    });
+
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      autoMonitorBaselineFingerprint: { fingerprint: '01', observedAt: expect.any(Number) }
+    });
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'AUTO_CLIPBOARD_IMAGE_DETECTED' })
+    );
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
+  });
+
+  it('persists a known empty clipboard baseline instead of losing the resume state', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { read: vi.fn().mockResolvedValue([]), write: vi.fn() }
+    });
+    Object.defineProperty(document, 'execCommand', {
+      configurable: true,
+      value: vi.fn(() => false)
+    });
+
+    await import('../../src/offscreen/offscreen');
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0][0] as OffscreenMessageListener;
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, {
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 10
+    });
+
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      autoMonitorBaselineFingerprint: { fingerprint: null, observedAt: expect.any(Number) }
+    });
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
+  });
+
+  it('delivers the first different image after a monitor resume instead of swallowing it as a new baseline', async () => {
+    const read = vi.fn().mockResolvedValue([pngClipboardItem('first image after reload')]);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { read, write: vi.fn() }
+    });
+    vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(new Uint8Array([2]).buffer);
+    vi.mocked(chrome.runtime.sendMessage).mockResolvedValue({ ok: true });
+
+    await import('../../src/offscreen/offscreen');
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0][0] as OffscreenMessageListener;
+
+    await expect(
+      sendOffscreenMessage<OffscreenMonitorResult>(listener, {
+        type: 'OFFSCREEN_START_AUTO_MONITOR',
+        intervalMs: 10,
+        resumeBaseline: { fingerprint: '01' }
+      } as OffscreenClipboardMessage)
+    ).resolves.toEqual({ ok: true, active: true });
+
+    await vi.waitFor(() =>
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'AUTO_CLIPBOARD_IMAGE_DETECTED', fingerprint: '02' })
+      )
+    );
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
+  });
+
+  it('refreshes the active baseline lease while the clipboard image stays unchanged', async () => {
+    let now = 1000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const read = vi.fn().mockResolvedValue([pngClipboardItem('unchanged baseline')]);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { read, write: vi.fn() }
+    });
+    vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(new Uint8Array([1]).buffer);
+    const intervalCallbacks: Array<() => void> = [];
+    vi.spyOn(window, 'setInterval').mockImplementation(((handler: TimerHandler) => {
+      intervalCallbacks.push(handler as () => void);
+      return intervalCallbacks.length;
+    }) as typeof window.setInterval);
+
+    await import('../../src/offscreen/offscreen');
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0][0] as OffscreenMessageListener;
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, {
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 10
+    });
+    expect(chrome.storage.local.set).toHaveBeenLastCalledWith({
+      autoMonitorBaselineFingerprint: { fingerprint: '01', observedAt: 1000 }
+    });
+
+    now = 12000;
+    intervalCallbacks[0]();
+    await vi.waitFor(() =>
+      expect(chrome.storage.local.set).toHaveBeenLastCalledWith({
+        autoMonitorBaselineFingerprint: { fingerprint: '01', observedAt: 12000 }
+      })
+    );
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
+  });
+
+  it('does not redeliver the unchanged clipboard image after a monitor resume', async () => {
+    const read = vi.fn().mockResolvedValue([pngClipboardItem('unchanged image')]);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { read, write: vi.fn() }
+    });
+    vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(new Uint8Array([1]).buffer);
+    vi.mocked(chrome.runtime.sendMessage).mockResolvedValue({ ok: true });
+
+    await import('../../src/offscreen/offscreen');
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0][0] as OffscreenMessageListener;
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, {
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 10,
+      resumeBaseline: { fingerprint: '01' }
+    } as OffscreenClipboardMessage);
+    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+
+    const deliveryMessages = vi
+      .mocked(chrome.runtime.sendMessage)
+      .mock.calls.filter(([message]) => (message as { type?: string }).type === 'AUTO_CLIPBOARD_IMAGE_DETECTED');
+    expect(deliveryMessages).toHaveLength(0);
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
+  });
+
+  it('delivers the first image after resuming from a known empty clipboard baseline', async () => {
+    const read = vi.fn().mockResolvedValue([pngClipboardItem('first image after empty baseline')]);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { read, write: vi.fn() }
+    });
+    vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(new Uint8Array([3]).buffer);
+    vi.mocked(chrome.runtime.sendMessage).mockResolvedValue({ ok: true });
+
+    await import('../../src/offscreen/offscreen');
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0][0] as OffscreenMessageListener;
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, {
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 10,
+      resumeBaseline: {}
+    } as OffscreenClipboardMessage);
+
+    await vi.waitFor(() =>
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'AUTO_CLIPBOARD_IMAGE_DETECTED', fingerprint: '03' })
+      )
+    );
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
+  });
+
   it('does not let a stale initial fingerprint failure clear a restarted monitor baseline', async () => {
     const read = vi
       .fn()

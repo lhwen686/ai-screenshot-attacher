@@ -94,6 +94,117 @@ describe('automatic monitor refresh', () => {
     );
   });
 
+  it('passes a fresh persisted clipboard baseline without relying on an install event', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(2000);
+    await chrome.storage.local.set({
+      autoMonitorBaselineFingerprint: { fingerprint: 'persisted-baseline', observedAt: 1000 }
+    });
+    const { refreshAutoMonitor } = await import('../../src/background/autoMonitor');
+
+    await refreshAutoMonitor();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 1500,
+      resumeBaseline: { fingerprint: 'persisted-baseline' }
+    });
+  });
+
+  it('passes a legacy clipboard baseline when an extension update explicitly requests migration', async () => {
+    await chrome.storage.local.set({ autoMonitorBaselineFingerprint: 'persisted-baseline' });
+    const { refreshAutoMonitor, requestAutoMonitorResumeFromStoredState } =
+      await import('../../src/background/autoMonitor');
+
+    requestAutoMonitorResumeFromStoredState();
+    await refreshAutoMonitor();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 1500,
+      resumeBaseline: { fingerprint: 'persisted-baseline' }
+    });
+  });
+
+  it('migrates the last handled fingerprint when the dedicated monitor baseline does not exist yet', async () => {
+    await chrome.storage.local.set({
+      autoDedupeState: { deliveryId: 'previous-delivery', fingerprint: 'last-handled-fingerprint', at: 123 }
+    });
+    const { refreshAutoMonitor, requestAutoMonitorResumeFromStoredState } =
+      await import('../../src/background/autoMonitor');
+
+    requestAutoMonitorResumeFromStoredState();
+    await refreshAutoMonitor();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 1500,
+      resumeBaseline: { fingerprint: 'last-handled-fingerprint' }
+    });
+  });
+
+  it('resumes from a persisted empty baseline so the first new image is not swallowed', async () => {
+    await chrome.storage.local.set({ autoMonitorBaselineFingerprint: null });
+    const { refreshAutoMonitor, requestAutoMonitorResumeFromStoredState } =
+      await import('../../src/background/autoMonitor');
+
+    requestAutoMonitorResumeFromStoredState();
+    await refreshAutoMonitor();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 1500,
+      resumeBaseline: {}
+    });
+  });
+
+  it('keeps a stale monitor lease in safe baseline mode', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(600000);
+    await chrome.storage.local.set({
+      autoMonitorBaselineFingerprint: { fingerprint: 'stale-baseline', observedAt: 1 }
+    });
+    const { refreshAutoMonitor } = await import('../../src/background/autoMonitor');
+
+    await refreshAutoMonitor();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 1500
+    });
+  });
+
+  it('forces a safe baseline on browser startup even when the persisted lease is fresh', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(2000);
+    await chrome.storage.local.set({
+      autoMonitorBaselineFingerprint: { fingerprint: 'fresh-baseline', observedAt: 1000 }
+    });
+    const { refreshAutoMonitor, requestAutoMonitorFreshBaseline } = await import('../../src/background/autoMonitor');
+
+    requestAutoMonitorFreshBaseline();
+    await refreshAutoMonitor();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 1500
+    });
+  });
+
+  it('drops a reload resume request when no supported target is open', async () => {
+    await chrome.storage.local.set({ autoMonitorBaselineFingerprint: 'stale-baseline' });
+    mocks.countOpenTargetTabs.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+    const { refreshAutoMonitor, requestAutoMonitorResumeFromStoredState } =
+      await import('../../src/background/autoMonitor');
+
+    requestAutoMonitorResumeFromStoredState();
+    await refreshAutoMonitor();
+    await refreshAutoMonitor();
+
+    const startMessages = vi
+      .mocked(chrome.runtime.sendMessage)
+      .mock.calls.map(([message]) => message)
+      .filter((message) => (message as { type?: string }).type === 'OFFSCREEN_START_AUTO_MONITOR');
+    expect(startMessages).toEqual([{ type: 'OFFSCREEN_START_AUTO_MONITOR', intervalMs: 1500 }]);
+  });
+
   it('runs a trailing refresh when state changes during an in-flight refresh', async () => {
     let resolveFirstCount!: (count: number) => void;
     const firstCount = new Promise<number>((resolve) => {
@@ -478,7 +589,7 @@ describe('automatic monitor refresh', () => {
     await expect(handleAutoClipboardImage(image, 'fingerprint-one')).resolves.toBeUndefined();
 
     expect(mocks.executeAttachRuntime).toHaveBeenCalledOnce();
-    expect(chrome.storage.local.get).toHaveBeenCalledOnce();
+    expect(chrome.storage.local.get).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('auto dedupe lookup failed'),
       expect.objectContaining({ message: 'auto dedupe lookup failed' })
@@ -512,6 +623,7 @@ describe('automatic monitor refresh', () => {
     });
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
     expect(chrome.storage.local.remove).toHaveBeenCalledOnce();
+    expect(chrome.storage.local.remove).toHaveBeenCalledWith(['autoDedupeState', 'autoMonitorBaselineFingerprint']);
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('auto monitor presence check failed'),
       expect.objectContaining({ message: 'auto monitor presence check failed' })
@@ -576,11 +688,11 @@ describe('automatic monitor refresh', () => {
     await Promise.resolve();
 
     expect(secondSettled).toBe(false);
-    expect(chrome.storage.local.get).toHaveBeenCalledOnce();
+    expect(chrome.storage.local.get).toHaveBeenCalledTimes(2);
     resolveFirstAttach({ ok: true, method: 'paste-event' });
 
     await expect(first).resolves.toBeUndefined();
-    await vi.waitFor(() => expect(chrome.storage.local.get).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(chrome.storage.local.get).toHaveBeenCalledTimes(3));
     await expect(second).resolves.toBeUndefined();
     expect(mocks.executeAttachRuntime).toHaveBeenCalledTimes(2);
   });
@@ -611,7 +723,7 @@ describe('automatic monitor refresh', () => {
       () => ({ ok: true as const }),
       (error: unknown) => ({ ok: false as const, error })
     );
-    expect(chrome.storage.local.get).toHaveBeenCalledOnce();
+    expect(chrome.storage.local.get).toHaveBeenCalledTimes(2);
     resolveFirstAttach({ ok: true, method: 'paste-event' });
 
     await expect(first).resolves.toBeUndefined();
@@ -640,7 +752,7 @@ describe('automatic monitor refresh', () => {
     await vi.waitFor(() => expect(mocks.executeAttachRuntime).toHaveBeenCalledOnce());
     const second = handleAutoClipboardImage(secondImage, 'fingerprint-two');
     const latest = handleAutoClipboardImage(latestImage, 'fingerprint-three');
-    expect(chrome.storage.local.get).toHaveBeenCalledOnce();
+    expect(chrome.storage.local.get).toHaveBeenCalledTimes(2);
     let supersededSettled = false;
     void second.finally(() => {
       supersededSettled = true;
@@ -648,7 +760,7 @@ describe('automatic monitor refresh', () => {
 
     resolveFirstAttach({ ok: true, method: 'paste-event' });
     await expect(first).resolves.toBeUndefined();
-    await vi.waitFor(() => expect(chrome.storage.local.get).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(chrome.storage.local.get).toHaveBeenCalledTimes(3));
     await vi.waitFor(() => expect(mocks.executeAttachRuntime).toHaveBeenCalledTimes(2));
 
     expect(mocks.executeAttachRuntime).toHaveBeenLastCalledWith(42, expect.objectContaining({ image: latestImage }));

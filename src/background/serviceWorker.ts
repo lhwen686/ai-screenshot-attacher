@@ -14,6 +14,8 @@ import {
   getAutoMonitorStatus,
   handleAutoClipboardImage,
   refreshAutoMonitor,
+  requestAutoMonitorFreshBaseline,
+  requestAutoMonitorResumeFromStoredState,
   resumeAutoMonitorRefresh,
   scheduleAutoMonitorRefresh,
   suspendAutoMonitorRefresh
@@ -41,7 +43,12 @@ const OFFSCREEN_RECOVERY_SUPPRESSION_TTL_MS = 120000;
 
 addOffscreenDocumentResetListener(handleOffscreenDocumentReset);
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'update') {
+    requestAutoMonitorResumeFromStoredState();
+  } else {
+    requestAutoMonitorFreshBaseline();
+  }
   void getSettings()
     .then(() => refreshAutoMonitorWithRecoveryGate())
     .catch((error) => {
@@ -50,6 +57,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  requestAutoMonitorFreshBaseline();
   scheduleRecoveryAwareAutoMonitorRefresh();
 });
 
@@ -395,6 +403,8 @@ chrome.storage.onChanged.addListener((_changes, areaName) => {
     scheduleRecoveryAwareAutoMonitorRefresh();
   }
 });
+
+scheduleRecoveryAwareAutoMonitorRefresh();
 
 function respondWithPromise<T>(
   promise: Promise<T>,

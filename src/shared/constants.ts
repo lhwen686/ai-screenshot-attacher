@@ -50,6 +50,8 @@ export const TARGET_IDS = Object.keys(AI_TARGETS) as TargetId[];
 export const OFFSCREEN_DOCUMENT_PATH = 'src/offscreen/offscreen.html';
 export const ATTACH_RUNTIME_FILE = 'src/content/attachRuntime.js';
 export const AUTO_MONITOR_INTERVAL_MS = 1500;
+export const AUTO_MONITOR_BASELINE_HEARTBEAT_MS = 10000;
+export const AUTO_MONITOR_BASELINE_MAX_AGE_MS = 300000;
 
 export const USER_MESSAGES = {
   noClipboardImage: '未检测到剪贴板图片，请先截图后再试。',
@@ -65,3 +67,4 @@ export const USER_MESSAGES = {
 
 export const LAST_OPERATION_KEY = 'lastOperationResult';
 export const AUTO_DEDUPE_STATE_KEY = 'autoDedupeState';
+export const AUTO_MONITOR_BASELINE_KEY = 'autoMonitorBaselineFingerprint';

@@ -44,6 +44,9 @@ export type OffscreenClipboardMessage =
   | {
       type: 'OFFSCREEN_START_AUTO_MONITOR';
       intervalMs?: number;
+      resumeBaseline?: {
+        fingerprint?: string;
+      };
     }
   | {
       type: 'OFFSCREEN_STOP_AUTO_MONITOR';
