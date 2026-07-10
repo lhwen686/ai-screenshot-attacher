@@ -2,6 +2,12 @@ import type { AttachResult } from '../adapters/types';
 import type { ClipboardImagePayload } from '../clipboard/types';
 
 const DOM_POLL_INTERVAL_MS = 100;
+const ATTACHMENT_OBSERVATION_SCOPE_SELECTOR = [
+  '[data-testid*="composer" i]',
+  '[data-test-id*="composer" i]',
+  '[class*="composer" i]',
+  'bard-text-input'
+].join(', ');
 
 export const GENERIC_FILE_INPUT_SELECTORS = [
   'input[type="file"][accept*="image" i]',
@@ -70,13 +76,17 @@ export function dataUrlToFile(image: ClipboardImagePayload): File {
 
 export function querySelectorCandidates<T extends Element>(
   selectors: string[],
-  options: { visibleOnly?: boolean } = {}
+  options: { visibleOnly?: boolean; root?: ParentNode } = {}
 ): T[] {
   const elements = new Set<T>();
+  const root = options.root ?? document;
 
   for (const selector of selectors) {
     try {
-      document.querySelectorAll<T>(selector).forEach((element) => {
+      if (root instanceof Element && root.matches(selector) && (!options.visibleOnly || isVisible(root))) {
+        elements.add(root as unknown as T);
+      }
+      root.querySelectorAll<T>(selector).forEach((element) => {
         if (!options.visibleOnly || isVisible(element)) {
           elements.add(element);
         }
@@ -91,7 +101,7 @@ export function querySelectorCandidates<T extends Element>(
 
 export function findFirstCandidate<T extends HTMLElement>(
   selectors: string[],
-  options: { visibleOnly?: boolean } = { visibleOnly: true }
+  options: { visibleOnly?: boolean; root?: ParentNode } = { visibleOnly: true }
 ): T | undefined {
   return querySelectorCandidates<T>(selectors, options)[0];
 }
@@ -115,8 +125,8 @@ export async function waitForAnyElement(selectors: string[], timeoutMs: number):
   return false;
 }
 
-export function focusFirstInput(selectors: string[]): void {
-  const target = findFirstCandidate<HTMLElement>(selectors, { visibleOnly: true });
+export function focusFirstInput(selectors: string[], scopeRoot: ParentNode = document): void {
+  const target = findFirstCandidate<HTMLElement>(selectors, { visibleOnly: true, root: scopeRoot });
   if (!target) {
     return;
   }
@@ -129,12 +139,25 @@ export function focusFirstInput(selectors: string[]): void {
   }
 }
 
-export function snapshotAttachmentCount(selectors: string[]): number {
+export function findAttachmentObservationRoot(target: Element): ParentNode {
+  return target.closest(ATTACHMENT_OBSERVATION_SCOPE_SELECTOR) ?? target;
+}
+
+export function findExplicitComposerRoot(target: Element): HTMLElement | undefined {
+  const root = target.closest(ATTACHMENT_OBSERVATION_SCOPE_SELECTOR);
+  return root instanceof HTMLElement ? root : undefined;
+}
+
+function getScopedObservationRoot(target: Element, scopeRoot: ParentNode): ParentNode {
+  return scopeRoot === document ? findAttachmentObservationRoot(target) : scopeRoot;
+}
+
+export function snapshotAttachmentCount(selectors: string[], observationRoot: ParentNode = document): number {
   const elements = new Set<Element>();
 
   for (const selector of [...selectors, ...GENERIC_ATTACHMENT_PREVIEW_SELECTORS]) {
     try {
-      document.querySelectorAll(selector).forEach((element) => elements.add(element));
+      observationRoot.querySelectorAll(selector).forEach((element) => elements.add(element));
     } catch {
       continue;
     }
@@ -147,13 +170,17 @@ export async function waitForAttachmentChange(
   selectors: string[],
   beforeCount: number,
   timeoutMs = 3000,
-  file?: File
+  file?: File,
+  observationRoot: ParentNode = document,
+  beforeHadFileName = file ? observationRootIncludes(observationRoot, file.name) : false
 ): Promise<boolean> {
   const startedAt = Date.now();
-  const hadFileName = file ? documentBodyIncludes(file.name) : false;
 
   while (Date.now() - startedAt < timeoutMs) {
-    if (snapshotAttachmentCount(selectors) > beforeCount || (file && !hadFileName && documentBodyIncludes(file.name))) {
+    if (
+      snapshotAttachmentCount(selectors, observationRoot) > beforeCount ||
+      (file && !beforeHadFileName && observationRootIncludes(observationRoot, file.name))
+    ) {
       return true;
     }
     await sleep(DOM_POLL_INTERVAL_MS);
@@ -165,45 +192,66 @@ export async function waitForAttachmentChange(
 export async function tryAttachViaFileInput(
   file: File,
   inputSelectors: string[],
-  previewSelectors: string[]
+  previewSelectors: string[],
+  scopeRoot: ParentNode = document
 ): Promise<AttachResult> {
-  const inputs = querySelectorCandidates<HTMLInputElement>(inputSelectors, { visibleOnly: false }).filter(
-    (input) => input.type === 'file' && acceptsImage(input)
-  );
+  const inputs = querySelectorCandidates<HTMLInputElement>(inputSelectors, {
+    visibleOnly: false,
+    root: scopeRoot
+  }).filter((input) => input.type === 'file' && acceptsImage(input));
+  if (inputs.length === 0) {
+    return { ok: false, method: 'file-input', outcome: 'rejected', error: 'FILE_INPUT_NOT_FOUND' };
+  }
 
   for (const input of inputs) {
+    let mutated = false;
     try {
-      const beforeCount = snapshotAttachmentCount(previewSelectors);
+      const observationRoot = getScopedObservationRoot(input, scopeRoot);
+      const beforeCount = snapshotAttachmentCount(previewSelectors, observationRoot);
+      const beforeHadFileName = observationRootIncludes(observationRoot, file.name);
       const dataTransfer = new DataTransfer();
       dataTransfer.items.add(file);
       input.files = dataTransfer.files;
+      mutated = true;
       input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
       input.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
 
-      if (await waitForAttachmentChange(previewSelectors, beforeCount, 5000, file)) {
-        return { ok: true, method: 'file-input' };
+      if (
+        await waitForAttachmentChange(previewSelectors, beforeCount, 5000, file, observationRoot, beforeHadFileName)
+      ) {
+        return { ok: true, method: 'file-input', outcome: 'confirmed' };
       }
+
+      return { ok: false, method: 'file-input', outcome: 'unknown', error: 'FILE_INPUT_ATTACH_UNCONFIRMED' };
     } catch {
+      if (mutated) {
+        return { ok: false, method: 'file-input', outcome: 'unknown', error: 'FILE_INPUT_ATTACH_UNCONFIRMED' };
+      }
       continue;
     }
   }
 
-  return { ok: false, method: 'file-input', error: 'FILE_INPUT_ATTACH_FAILED' };
+  return { ok: false, method: 'file-input', outcome: 'rejected', error: 'FILE_INPUT_ATTACH_FAILED' };
 }
 
 export async function tryAttachViaPaste(
   file: File,
   inputSelectors: string[],
-  previewSelectors: string[]
+  previewSelectors: string[],
+  scopeRoot: ParentNode = document
 ): Promise<AttachResult> {
-  const target = findFirstCandidate<HTMLElement>(inputSelectors, { visibleOnly: true });
+  const target = findFirstCandidate<HTMLElement>(inputSelectors, { visibleOnly: true, root: scopeRoot });
   if (!target) {
-    return { ok: false, method: 'paste-event', error: 'INPUT_NOT_FOUND' };
+    return { ok: false, method: 'paste-event', outcome: 'rejected', error: 'INPUT_NOT_FOUND' };
   }
 
+  let mutated = false;
   try {
-    const beforeCount = snapshotAttachmentCount(previewSelectors);
     target.focus({ preventScroll: false });
+    await sleep(DOM_POLL_INTERVAL_MS);
+    const observationRoot = getScopedObservationRoot(target, scopeRoot);
+    const beforeCount = snapshotAttachmentCount(previewSelectors, observationRoot);
+    const beforeHadFileName = observationRootIncludes(observationRoot, file.name);
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
     const event = new ClipboardEvent('paste', {
@@ -214,32 +262,41 @@ export async function tryAttachViaPaste(
     Object.defineProperty(event, 'clipboardData', {
       value: dataTransfer
     });
+    mutated = true;
     target.dispatchEvent(event);
 
-    if (await waitForAttachmentChange(previewSelectors, beforeCount, 3000, file)) {
-      return { ok: true, method: 'paste-event' };
+    if (await waitForAttachmentChange(previewSelectors, beforeCount, 3000, file, observationRoot, beforeHadFileName)) {
+      return { ok: true, method: 'paste-event', outcome: 'confirmed' };
     }
   } catch {
-    return { ok: false, method: 'paste-event', error: 'PASTE_EVENT_FAILED' };
+    return mutated
+      ? { ok: false, method: 'paste-event', outcome: 'unknown', error: 'PASTE_EVENT_NO_PREVIEW' }
+      : { ok: false, method: 'paste-event', outcome: 'rejected', error: 'PASTE_EVENT_FAILED' };
   }
 
-  return { ok: false, method: 'paste-event', error: 'PASTE_EVENT_NO_PREVIEW' };
+  return { ok: false, method: 'paste-event', outcome: 'unknown', error: 'PASTE_EVENT_NO_PREVIEW' };
 }
 
 export async function tryAttachViaPasteRelaxed(
   file: File,
   inputSelectors: string[],
   previewSelectors: string[],
-  options: { timeoutMs?: number; successTextPatterns?: RegExp[] } = {}
+  options: { timeoutMs?: number; successTextPatterns?: RegExp[]; scopeRoot?: ParentNode } = {}
 ): Promise<AttachResult> {
-  const target = findFirstCandidate<HTMLElement>(inputSelectors, { visibleOnly: true });
+  const target = findFirstCandidate<HTMLElement>(inputSelectors, {
+    visibleOnly: true,
+    root: options.scopeRoot ?? document
+  });
   if (!target) {
-    return { ok: false, method: 'paste-event', error: 'INPUT_NOT_FOUND' };
+    return { ok: false, method: 'paste-event', outcome: 'rejected', error: 'INPUT_NOT_FOUND' };
   }
 
+  let mutated = false;
   try {
-    const beforeSnapshot = snapshotAttachmentState(previewSelectors);
     focusEditableTarget(target);
+    await sleep(DOM_POLL_INTERVAL_MS);
+    const observationRoot = getScopedObservationRoot(target, options.scopeRoot ?? document);
+    const beforeSnapshot = snapshotAttachmentState(previewSelectors, options.successTextPatterns, observationRoot);
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
     const event = new ClipboardEvent('paste', {
@@ -251,6 +308,7 @@ export async function tryAttachViaPasteRelaxed(
     Object.defineProperty(event, 'clipboardData', {
       value: dataTransfer
     });
+    mutated = true;
     target.dispatchEvent(event);
 
     if (
@@ -258,34 +316,44 @@ export async function tryAttachViaPasteRelaxed(
         previewSelectors,
         beforeSnapshot,
         options.timeoutMs ?? 8000,
-        options.successTextPatterns
+        options.successTextPatterns,
+        observationRoot
       )
     ) {
-      return { ok: true, method: 'paste-event' };
+      return { ok: true, method: 'paste-event', outcome: 'confirmed' };
     }
   } catch {
-    return { ok: false, method: 'paste-event', error: 'PASTE_EVENT_FAILED' };
+    return mutated
+      ? { ok: false, method: 'paste-event', outcome: 'unknown', error: 'PASTE_EVENT_NO_PREVIEW' }
+      : { ok: false, method: 'paste-event', outcome: 'rejected', error: 'PASTE_EVENT_FAILED' };
   }
 
-  return { ok: false, method: 'paste-event', error: 'PASTE_EVENT_NO_PREVIEW' };
+  return { ok: false, method: 'paste-event', outcome: 'unknown', error: 'PASTE_EVENT_NO_PREVIEW' };
 }
 
 export async function tryPasteClipboardViaCommand(
   inputSelectors: string[],
   previewSelectors: string[],
-  options: { timeoutMs?: number; successTextPatterns?: RegExp[] } = {}
+  options: { timeoutMs?: number; successTextPatterns?: RegExp[]; scopeRoot?: ParentNode } = {}
 ): Promise<AttachResult> {
-  const target = findFirstCandidate<HTMLElement>(inputSelectors, { visibleOnly: true });
+  const target = findFirstCandidate<HTMLElement>(inputSelectors, {
+    visibleOnly: true,
+    root: options.scopeRoot ?? document
+  });
   if (!target) {
-    return { ok: false, method: 'paste-command', error: 'INPUT_NOT_FOUND' };
+    return { ok: false, method: 'paste-command', outcome: 'rejected', error: 'INPUT_NOT_FOUND' };
   }
 
+  let mutated = false;
   try {
-    const beforeSnapshot = snapshotAttachmentState(previewSelectors);
     focusEditableTarget(target);
+    await sleep(DOM_POLL_INTERVAL_MS);
+    const observationRoot = getScopedObservationRoot(target, options.scopeRoot ?? document);
+    const beforeSnapshot = snapshotAttachmentState(previewSelectors, options.successTextPatterns, observationRoot);
+    mutated = true;
     const didPaste = document.execCommand('paste');
     if (!didPaste) {
-      return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_REJECTED' };
+      return { ok: false, method: 'paste-command', outcome: 'unknown', error: 'PASTE_COMMAND_REJECTED' };
     }
 
     if (
@@ -293,31 +361,39 @@ export async function tryPasteClipboardViaCommand(
         previewSelectors,
         beforeSnapshot,
         options.timeoutMs ?? 4500,
-        options.successTextPatterns
+        options.successTextPatterns,
+        observationRoot
       )
     ) {
-      return { ok: true, method: 'paste-command' };
+      return { ok: true, method: 'paste-command', outcome: 'confirmed' };
     }
   } catch {
-    return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_FAILED' };
+    return mutated
+      ? { ok: false, method: 'paste-command', outcome: 'unknown', error: 'PASTE_COMMAND_NO_PREVIEW' }
+      : { ok: false, method: 'paste-command', outcome: 'rejected', error: 'PASTE_COMMAND_FAILED' };
   }
 
-  return { ok: false, method: 'paste-command', error: 'PASTE_COMMAND_NO_PREVIEW' };
+  return { ok: false, method: 'paste-command', outcome: 'unknown', error: 'PASTE_COMMAND_NO_PREVIEW' };
 }
 
 export async function tryAttachViaDrop(
   file: File,
   dropSelectors: string[],
-  previewSelectors: string[]
+  previewSelectors: string[],
+  scopeRoot: ParentNode = document
 ): Promise<AttachResult> {
-  const target = findFirstCandidate<HTMLElement>(dropSelectors, { visibleOnly: true });
+  const target = findFirstCandidate<HTMLElement>(dropSelectors, { visibleOnly: true, root: scopeRoot });
   if (!target) {
-    return { ok: false, method: 'drop-event', error: 'DROP_TARGET_NOT_FOUND' };
+    return { ok: false, method: 'drop-event', outcome: 'rejected', error: 'DROP_TARGET_NOT_FOUND' };
   }
 
+  let mutated = false;
   try {
-    const beforeCount = snapshotAttachmentCount(previewSelectors);
     target.focus({ preventScroll: false });
+    await sleep(DOM_POLL_INTERVAL_MS);
+    const observationRoot = getScopedObservationRoot(target, scopeRoot);
+    const beforeCount = snapshotAttachmentCount(previewSelectors, observationRoot);
+    const beforeHadFileName = observationRootIncludes(observationRoot, file.name);
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
 
@@ -331,18 +407,21 @@ export async function tryAttachViaDrop(
       Object.defineProperty(event, 'dataTransfer', {
         value: dataTransfer
       });
+      mutated = true;
       target.dispatchEvent(event);
       await sleep(80);
     }
 
-    if (await waitForAttachmentChange(previewSelectors, beforeCount, 5000, file)) {
-      return { ok: true, method: 'drop-event' };
+    if (await waitForAttachmentChange(previewSelectors, beforeCount, 5000, file, observationRoot, beforeHadFileName)) {
+      return { ok: true, method: 'drop-event', outcome: 'confirmed' };
     }
   } catch {
-    return { ok: false, method: 'drop-event', error: 'DROP_EVENT_FAILED' };
+    return mutated
+      ? { ok: false, method: 'drop-event', outcome: 'unknown', error: 'DROP_EVENT_NO_PREVIEW' }
+      : { ok: false, method: 'drop-event', outcome: 'rejected', error: 'DROP_EVENT_FAILED' };
   }
 
-  return { ok: false, method: 'drop-event', error: 'DROP_EVENT_NO_PREVIEW' };
+  return { ok: false, method: 'drop-event', outcome: 'unknown', error: 'DROP_EVENT_NO_PREVIEW' };
 }
 
 function acceptsImage(input: HTMLInputElement): boolean {
@@ -358,10 +437,6 @@ function acceptsImage(input: HTMLInputElement): boolean {
     accept.includes('.jpeg') ||
     accept.includes('.webp')
   );
-}
-
-function documentBodyIncludes(text: string): boolean {
-  return Boolean(text) && document.body?.innerText?.includes(text);
 }
 
 function focusEditableTarget(target: HTMLElement): void {
@@ -387,15 +462,18 @@ function focusEditableTarget(target: HTMLElement): void {
 
 interface AttachmentStateSnapshot {
   count: number;
-  imageCount: number;
-  text: string;
+  successTextCounts: number[];
 }
 
-function snapshotAttachmentState(selectors: string[]): AttachmentStateSnapshot {
+function snapshotAttachmentState(
+  selectors: string[],
+  successTextPatterns: RegExp[] = [],
+  observationRoot: ParentNode = document
+): AttachmentStateSnapshot {
+  const text = getObservationText(observationRoot);
   return {
-    count: snapshotAttachmentCount(selectors),
-    imageCount: document.querySelectorAll('img, image-preview, file-preview, upload-image').length,
-    text: document.body?.innerText ?? ''
+    count: snapshotAttachmentCount(selectors, observationRoot),
+    successTextCounts: successTextPatterns.map((pattern) => countPatternMatches(text, pattern))
   };
 }
 
@@ -403,19 +481,19 @@ async function waitForRelaxedAttachmentSuccess(
   selectors: string[],
   before: AttachmentStateSnapshot,
   timeoutMs: number,
-  successTextPatterns: RegExp[] = []
+  successTextPatterns: RegExp[] = [],
+  observationRoot: ParentNode = document
 ): Promise<boolean> {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
-    const current = snapshotAttachmentState(selectors);
-    const textDelta = current.text.slice(Math.min(before.text.length, current.text.length));
+    const current = snapshotAttachmentState(selectors, successTextPatterns, observationRoot);
 
-    if (current.count > before.count || current.imageCount > before.imageCount) {
+    if (current.count > before.count) {
       return true;
     }
 
-    if (successTextPatterns.some((pattern) => pattern.test(current.text) || pattern.test(textDelta))) {
+    if (current.successTextCounts.some((count, index) => count > (before.successTextCounts[index] ?? 0))) {
       return true;
     }
 
@@ -423,4 +501,21 @@ async function waitForRelaxedAttachmentSuccess(
   }
 
   return false;
+}
+
+function countPatternMatches(text: string, pattern: RegExp): number {
+  const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+  return Array.from(text.matchAll(new RegExp(pattern.source, flags))).length;
+}
+
+function getObservationText(observationRoot: ParentNode): string {
+  if (observationRoot instanceof HTMLElement) {
+    return observationRoot.innerText ?? observationRoot.textContent ?? '';
+  }
+
+  return document.body?.innerText ?? document.body?.textContent ?? '';
+}
+
+function observationRootIncludes(observationRoot: ParentNode, text: string): boolean {
+  return Boolean(text) && getObservationText(observationRoot).includes(text);
 }

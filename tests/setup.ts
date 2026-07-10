@@ -99,6 +99,7 @@ export function createChromeMock() {
       executeScript: vi.fn()
     },
     offscreen: {
+      closeDocument: vi.fn().mockResolvedValue(undefined),
       createDocument: vi.fn(),
       hasDocument: vi.fn()
     }

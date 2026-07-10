@@ -47,6 +47,10 @@ export type OffscreenClipboardMessage =
     }
   | {
       type: 'OFFSCREEN_STOP_AUTO_MONITOR';
+    }
+  | {
+      type: 'OFFSCREEN_REGISTER_CLIPBOARD_WRITE_FINGERPRINT';
+      fingerprint: string;
     };
 
 export type OffscreenMonitorResult =

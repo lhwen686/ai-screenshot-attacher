@@ -1,9 +1,23 @@
 {
   "manifest_version": 3,
   "name": "AI Screenshot Attacher",
+  "short_name": "AI Attacher",
   "version": "0.1.0",
-  "description": "Attach the current clipboard screenshot to ChatGPT, Claude, Gemini, or Doubao after explicit user action.",
+  "minimum_chrome_version": "109",
+  "description": "Attach clipboard screenshots to ChatGPT, Claude, Gemini, or Doubao after your action. It never sends messages automatically.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "action": {
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    },
     "default_popup": "src/popup/popup.html",
     "default_title": "AI Screenshot Attacher"
   },

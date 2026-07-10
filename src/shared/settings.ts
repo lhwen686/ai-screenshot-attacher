@@ -1,6 +1,7 @@
 import { type TargetId, TARGET_IDS } from './constants';
 
 const SETTINGS_KEY = 'settings';
+let settingsSaveTail: Promise<void> = Promise.resolve();
 
 export interface AppSettings {
   defaultTargetId: TargetId;
@@ -29,20 +30,39 @@ export async function getSettings(): Promise<AppSettings> {
   const settings = stored[SETTINGS_KEY] as Partial<AppSettings> | undefined;
 
   return {
-    ...DEFAULT_SETTINGS,
-    ...settings,
-    defaultTargetId: normalizeTargetId(settings?.defaultTargetId)
+    defaultTargetId: normalizeTargetId(settings?.defaultTargetId),
+    autoAttachEnabled: normalizeBoolean(settings?.autoAttachEnabled, DEFAULT_SETTINGS.autoAttachEnabled),
+    showPageToast: normalizeBoolean(settings?.showPageToast, DEFAULT_SETTINGS.showPageToast),
+    writeBackOnFailure: normalizeBoolean(settings?.writeBackOnFailure, DEFAULT_SETTINGS.writeBackOnFailure),
+    openInNewTab: normalizeBoolean(settings?.openInNewTab, DEFAULT_SETTINGS.openInNewTab),
+    debugLogs: normalizeBoolean(settings?.debugLogs, DEFAULT_SETTINGS.debugLogs)
   };
 }
 
-export async function saveSettings(partial: Partial<AppSettings>): Promise<AppSettings> {
+export function saveSettings(partial: Partial<AppSettings>): Promise<AppSettings> {
+  const operation = settingsSaveTail.then(() => saveSettingsUnlocked(partial));
+  settingsSaveTail = operation.then(
+    () => undefined,
+    () => undefined
+  );
+  return operation;
+}
+
+async function saveSettingsUnlocked(partial: Partial<AppSettings>): Promise<AppSettings> {
   const current = await getSettings();
   const next: AppSettings = {
-    ...current,
-    ...partial,
-    defaultTargetId: normalizeTargetId(partial.defaultTargetId ?? current.defaultTargetId)
+    defaultTargetId: normalizeTargetId(partial.defaultTargetId ?? current.defaultTargetId),
+    autoAttachEnabled: normalizeBoolean(partial.autoAttachEnabled, current.autoAttachEnabled),
+    showPageToast: normalizeBoolean(partial.showPageToast, current.showPageToast),
+    writeBackOnFailure: normalizeBoolean(partial.writeBackOnFailure, current.writeBackOnFailure),
+    openInNewTab: normalizeBoolean(partial.openInNewTab, current.openInNewTab),
+    debugLogs: normalizeBoolean(partial.debugLogs, current.debugLogs)
   };
 
   await chrome.storage.sync.set({ [SETTINGS_KEY]: next });
   return next;
+}
+
+function normalizeBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
 }

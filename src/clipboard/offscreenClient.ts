@@ -1,6 +1,21 @@
 import { OFFSCREEN_DOCUMENT_PATH } from '../shared/constants';
+import { withTimeout } from '../shared/withTimeout';
 
-let creating: Promise<void> | undefined;
+const OFFSCREEN_LIFECYCLE_TIMEOUT_MS = 10000;
+
+let creating: { generation: number; promise: Promise<void> } | undefined;
+let lifecycleTail: Promise<void> = Promise.resolve();
+let documentResetGeneration = 0;
+const documentResetListeners = new Set<(generation: number) => void>();
+
+function enqueueLifecycleOperation(operation: () => Promise<void>): Promise<void> {
+  const result = lifecycleTail.then(operation);
+  lifecycleTail = result.then(
+    () => undefined,
+    () => undefined
+  );
+  return result;
+}
 
 export async function hasOffscreenDocument(path = OFFSCREEN_DOCUMENT_PATH): Promise<boolean> {
   const runtimeWithContexts = chrome.runtime as typeof chrome.runtime & {
@@ -10,40 +25,91 @@ export async function hasOffscreenDocument(path = OFFSCREEN_DOCUMENT_PATH): Prom
     }) => Promise<Array<{ contextType: string; documentUrl?: string }>>;
   };
 
-  if (!runtimeWithContexts.getContexts) {
+  const documentUrl = chrome.runtime.getURL(path);
+  if (runtimeWithContexts.getContexts) {
+    const contexts = await withTimeout(
+      runtimeWithContexts.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT'],
+        documentUrls: [documentUrl]
+      }),
+      OFFSCREEN_LIFECYCLE_TIMEOUT_MS,
+      'OFFSCREEN_CONTEXT_LOOKUP_TIMEOUT'
+    );
+
+    return contexts.length > 0;
+  }
+
+  const workerClients = (
+    globalThis as typeof globalThis & {
+      clients?: { matchAll(): Promise<Array<{ url: string }>> };
+    }
+  ).clients;
+  if (!workerClients) {
     return false;
   }
 
-  const contexts = await runtimeWithContexts.getContexts({
-    contextTypes: ['OFFSCREEN_DOCUMENT'],
-    documentUrls: [chrome.runtime.getURL(path)]
-  });
-
-  return contexts.length > 0;
+  const matchedClients = await withTimeout(
+    workerClients.matchAll(),
+    OFFSCREEN_LIFECYCLE_TIMEOUT_MS,
+    'OFFSCREEN_CLIENT_LOOKUP_TIMEOUT'
+  );
+  return matchedClients.some((client) => client.url === documentUrl);
 }
 
 export async function ensureOffscreenDocument(): Promise<void> {
-  if (await hasOffscreenDocument(OFFSCREEN_DOCUMENT_PATH)) {
-    return;
-  }
+  const generation = documentResetGeneration;
+  if (!creating || creating.generation !== generation) {
+    const quarantine = enqueueLifecycleOperation(async () => {
+      if (await hasOffscreenDocument(OFFSCREEN_DOCUMENT_PATH)) {
+        return;
+      }
 
-  if (!creating) {
-    creating = chrome.offscreen
-      .createDocument({
+      await chrome.offscreen.createDocument({
         url: OFFSCREEN_DOCUMENT_PATH,
         reasons: ['CLIPBOARD'],
-        justification: 'Read and write clipboard images only after explicit user action.'
-      })
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes('Only a single offscreen document')) {
-          throw error;
-        }
-      })
-      .finally(() => {
-        creating = undefined;
+        justification:
+          'Read clipboard images after user actions or while user-enabled automatic mode is active; write only for fallback.'
       });
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('Only a single offscreen document')) {
+        throw error;
+      }
+    });
+    const operation = withTimeout(quarantine, OFFSCREEN_LIFECYCLE_TIMEOUT_MS, 'OFFSCREEN_CREATE_TIMEOUT');
+    const tracked = operation.finally(() => {
+      if (creating?.promise === tracked) {
+        creating = undefined;
+      }
+    });
+    creating = { generation, promise: tracked };
   }
 
-  await creating;
+  await creating.promise;
+}
+
+export function resetOffscreenDocument(): Promise<void> {
+  documentResetGeneration += 1;
+  const quarantine = enqueueLifecycleOperation(async () => {
+    if (await hasOffscreenDocument(OFFSCREEN_DOCUMENT_PATH)) {
+      await chrome.offscreen.closeDocument();
+    }
+  });
+  for (const listener of documentResetListeners) {
+    try {
+      listener(documentResetGeneration);
+    } catch {
+      // Reset safety must not depend on an observer completing successfully.
+    }
+  }
+  return withTimeout(quarantine, OFFSCREEN_LIFECYCLE_TIMEOUT_MS, 'OFFSCREEN_CLOSE_TIMEOUT');
+}
+
+export function getOffscreenDocumentResetGeneration(): number {
+  return documentResetGeneration;
+}
+
+export function addOffscreenDocumentResetListener(listener: (generation: number) => void): () => void {
+  documentResetListeners.add(listener);
+  return () => documentResetListeners.delete(listener);
 }

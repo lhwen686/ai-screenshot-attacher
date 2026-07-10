@@ -4,6 +4,19 @@ Manifest V3 Chrome / Edge extension MVP for attaching the current system clipboa
 
 这是一个 Manifest V3 Chrome / Edge 浏览器扩展 MVP，用于把当前系统剪贴板里的截图附加到 ChatGPT、Claude、Gemini 或豆包。插件不会自动发送 AI 消息。
 
+Browser requirement: Chrome 109+ or a Chromium-based Microsoft Edge version compatible with Chromium 109+. The extension declares `minimum_chrome_version: 109` because clipboard access depends on the MV3 offscreen API.
+
+浏览器要求：Chrome 109+，或兼容 Chromium 109+ 的 Microsoft Edge。插件依赖 MV3 offscreen API 访问剪贴板，因此在清单中声明了 `minimum_chrome_version: 109`。
+
+![AI Screenshot Attacher workflow](store-assets/chrome-web-store/screenshot-workflow-1280x800.png)
+
+## Who It Is For / 适合谁
+
+- People who frequently paste screenshots into AI chats for troubleshooting, writing, product work, or visual review.
+- 需要频繁把截图发给 AI 分析、排错、写作、产品讨论或视觉检查的用户。
+- Users who want a faster attach workflow but still want to review the message before sending.
+- 希望减少重复粘贴步骤，但仍想自己检查并发送消息的用户。
+
 ## Features / 功能
 
 - Read a clipboard screenshot only after a shortcut, popup button, or enabled automatic mode trigger.
@@ -14,17 +27,19 @@ Manifest V3 Chrome / Edge extension MVP for attaching the current system clipboa
 - 可选自动模式：开启后，仅在 ChatGPT、Claude、Gemini 或豆包已打开时检测新的剪贴板截图。
 - Reuse supported AI pages opened as Chrome installed desktop app windows when Chrome exposes them to the extension.
 - 支持复用 Chrome “安装为应用”的受支持 AI 桌面窗口。
-- Use site-specific attachment strategies, with paste-only paths for Claude and Gemini to avoid duplicate or invalid attachment chips.
-- 针对不同网站使用不同附加策略；Claude 和 Gemini 使用 paste-only 路径，避免重复附件或无效附件卡片。
-- Doubao starts with real clipboard paste, then falls back to synthetic paste, drop, and file input strategies.
-- 豆包会优先尝试真实剪贴板粘贴，然后回退到合成 paste、drop 和 file input 策略。
-- On failure, optionally write the image back to the clipboard and focus the AI input box for manual `Ctrl+V` / `Cmd+V`.
-- 自动附加失败时，可选择把图片写回剪贴板并聚焦 AI 输入框，便于手动 `Ctrl+V` / `Cmd+V`。
+- Use site-specific attachment strategies and stop after the first dispatched mutation when the page cannot confirm the result, preventing one trigger from creating duplicate attachments.
+- 针对不同网站使用不同附加策略；页面无法确认结果时，会在第一次已执行的操作后停止，避免一次触发产生重复附件。
+- Manual Gemini and Doubao attachment can use real clipboard paste only after restoring the captured screenshot; automatic mode always uses the captured image payload instead of later clipboard contents.
+- 手动附加到 Gemini 或豆包时，仅会在恢复已捕获截图后尝试真实剪贴板粘贴；自动模式始终使用已捕获的图片数据，不会误用之后变化的剪贴板内容。
+- On failure, optionally write the image back to the clipboard and, when the target composer is reachable, focus it for manual `Ctrl+V` / `Cmd+V`.
+- 自动附加失败时，可选择把图片写回剪贴板；目标输入区仍可访问时，插件会尝试聚焦它，便于手动 `Ctrl+V` / `Cmd+V`。
 - Adapter architecture for adding more AI sites later.
 - 使用 adapter 架构，方便后续扩展更多 AI 网站。
 
 ## Privacy and Safety / 隐私与安全
 
+- Full privacy policy: [PRIVACY.md](PRIVACY.md).
+- 完整隐私政策见：[PRIVACY.md](PRIVACY.md)。
 - This extension does not upload images to an extension author server.
 - 本插件不会把图片上传到插件作者服务器。
 - Manual mode reads the clipboard only after explicit user action.
@@ -116,9 +131,17 @@ Create a loadable extension zip with:
 npm run package
 ```
 
-The zip is written to `release/`.
+The command rebuilds `dist/`, validates the extension resource closure and JavaScript syntax, then writes the zip to `release/`.
 
-压缩包会生成到 `release/`。
+该命令会重新构建 `dist/`、验证扩展资源闭包与 JavaScript 语法，然后把压缩包生成到 `release/`。
+
+For public release preparation, use:
+
+公开发布前请使用：
+
+- [Release checklist](docs/release-checklist.md)
+- [Chrome Web Store listing notes](docs/chrome-web-store-listing.md)
+- [Manual test matrix](docs/manual-test-matrix.md)
 
 ## Load in Chrome / 在 Chrome 中加载
 
@@ -172,7 +195,7 @@ If a shortcut is already used by the browser or OS, change it at `chrome://exten
 8. Repeat with the popup Doubao button or set Doubao as the default model and press `Alt+Shift+A`.
 9. Clear the clipboard or copy text only, then trigger the extension.
 10. Confirm the popup shows `未检测到剪贴板图片，请先截图后再试。`
-11. If automatic attachment fails, confirm the input is focused and the screenshot remains available for manual paste.
+11. If automatic attachment fails, confirm the screenshot remains available for manual paste and that the input is focused when the target composer was reachable.
 
 12. 使用 `Win+Shift+S` 截图，并确保截图进入剪贴板。
 13. 按 `Alt+Shift+1`。
@@ -184,7 +207,7 @@ If a shortcut is already used by the browser or OS, change it at `chrome://exten
 19. 使用 popup 里的豆包按钮测试，或把豆包设为默认模型后按 `Alt+Shift+A`。
 20. 清空剪贴板或只复制文本，再触发插件。
 21. 确认 popup 显示 `未检测到剪贴板图片，请先截图后再试。`
-22. 如果自动附加失败，确认输入框被聚焦，且截图仍可手动粘贴。
+22. 如果自动附加失败，确认截图仍可手动粘贴；目标输入区可访问时，再确认输入框已被聚焦。
 
 ## Automatic Mode / 自动模式
 
@@ -204,6 +227,10 @@ When enabled:
 - 约每 1.5 秒检测一次新的剪贴板图片。
 - New images are attached to the currently focused AI page first.
 - 新图片会优先附加到当前聚焦的 AI 页面。
+- Attachment work is serialized per target tab, so a manual shortcut and automatic detection cannot mutate the same composer concurrently.
+- 同一目标标签页的附加操作会串行执行，避免手动快捷键与自动检测同时修改同一个输入区。
+- Manual Gemini/Doubao operations that prepare and paste through the system clipboard are also serialized globally across tabs. Extension-originated clipboard writes are treated as monitor baselines instead of new automatic screenshots.
+- 手动 Gemini/豆包的“准备剪贴板→浏览器粘贴”操作还会在所有标签页间全局串行；插件自身写入的图片会成为监控基线，不会再次被当作新的自动截图。
 - If no supported AI page is open, the monitor stops and no clipboard reads are attempted.
 - 如果没有受支持的 AI 页面打开，监控会停止，不会尝试读取剪贴板。
 - Clicking the extension button still keeps the original behavior: it opens the selected default model/platform if needed.
@@ -221,10 +248,36 @@ When enabled:
 - 如果剪贴板权限失败，从 `chrome://extensions` 重新加载扩展，然后先用 popup 按钮测试一次。
 - If automatic attachment fails, the target site's frontend may have rejected synthetic paste/drop. The extension should focus the input and keep the screenshot available for manual `Ctrl+V`.
 - 如果自动附加失败，可能是目标网站前端拒绝了合成 paste/drop。插件会尝试聚焦输入框，并保留截图供手动 `Ctrl+V`。
-- Gemini uses paste-only attachment. Synthetic file input can create an invalid `文件中没有内容` chip on Gemini, so the adapter avoids that path entirely.
-- Gemini 使用 paste-only 附加。合成 file input 可能在 Gemini 中生成 `文件中没有内容` 的无效卡片，因此 adapter 会完全避开该路径。
+- If the result says the attachment action could not be confirmed, inspect the composer first. Paste manually only when no image is present, which avoids duplicating an attachment that rendered slowly.
+- 如果提示“未能确认结果”，请先检查输入区；只有确认没有图片时再手动粘贴，避免慢速渲染造成重复附件。
 - If a supported AI site is installed as a Chrome desktop app, keep it in the same Chrome profile where this extension is installed.
 - 如果受支持 AI 站点是 Chrome 桌面应用，请确保它和插件安装在同一个 Chrome profile 中。
+
+## FAQ / 常见问题
+
+**Does it send my message automatically? / 它会自动发送消息吗？**
+
+No. It only attaches the screenshot. You still write, review, and send the message yourself.
+
+不会。它只附加截图，消息仍由你自己编写、检查和发送。
+
+**Does it save my screenshots? / 它会保存我的截图吗？**
+
+No screenshot history is stored by the extension.
+
+不会。插件不保存截图历史。
+
+**Why does it need clipboard permissions? / 为什么需要剪贴板权限？**
+
+`clipboardRead` is required to read the screenshot you just copied. For a manual Gemini or Doubao action, `clipboardWrite` may prepare that captured image immediately before a browser paste so later clipboard changes cannot substitute a different image. It is also used by the optional failure fallback that keeps the screenshot available for manual paste. Automatic mode attaches the captured payload without using the current clipboard for a real paste.
+
+`clipboardRead` 用于读取你刚复制的截图。手动附加到 Gemini 或豆包时，`clipboardWrite` 可能会在浏览器粘贴前把本次捕获的图片准备到剪贴板，避免之后的剪贴板变化替换成另一张图；它也用于可选的失败回退，方便你手动粘贴。自动模式直接使用已捕获的图片数据，不会用当前剪贴板执行真实粘贴。
+
+**Where do I report a broken AI-site adapter? / 某个 AI 网站失效了去哪里反馈？**
+
+Open an issue with the target site, browser, extension version, and what happened: https://github.com/lhwen686/ai-screenshot-attacher/issues/new/choose
+
+请提交 issue，并说明目标网站、浏览器、插件版本和失败现象：https://github.com/lhwen686/ai-screenshot-attacher/issues/new/choose
 
 ## Settings / 设置项
 
@@ -233,7 +286,7 @@ Open the extension options page to change:
 打开扩展设置页可以修改：
 
 - Default model/platform: choose ChatGPT, Claude, Gemini, or Doubao for `Alt+Shift+A` and the popup primary button. This does not choose a model version inside those sites. / 默认模型/平台：为 `Alt+Shift+A` 和 popup 主按钮选择 ChatGPT、Claude、Gemini 或豆包。这不会选择站点内部的具体模型版本。
-- Whether to show a page toast after success. / 成功后是否显示页面 Toast。
+- Whether to show a page toast after attachment success or failure. / 附加成功或失败后是否显示页面 Toast。
 - Whether to enable automatic paste mode. / 是否启用自动粘贴模式。
 - Whether to write the image back to the clipboard on failure. / 失败时是否写回剪贴板。
 - Whether to open a target AI page in a new tab if none is already open. / 没有目标页面时是否新建标签页打开。
@@ -241,10 +294,10 @@ Open the extension options page to change:
 
 ## Known Limits / 已知限制
 
-- AI sites frequently change their frontends. The adapters avoid fixed class names, but selectors and success heuristics may need updates.
+- AI sites frequently change their frontends. The adapters use multiple scoped selector fallbacks to reduce reliance on fragile class names, but selectors and success heuristics may still need updates.
 - AI 网站前端变化频繁。adapter 已避免依赖固定 className，但 selector 和成功检测逻辑仍可能需要更新。
-- Some sites may block synthetic paste or drop events. In that case the extension falls back to preserving the screenshot in the clipboard and focusing the input.
-- 一些网站可能阻止合成 paste 或 drop 事件。此时插件会退回到保留剪贴板截图并聚焦输入框。
+- Some sites may block synthetic paste or drop events. In that case the extension preserves the screenshot in the clipboard and focuses the input when the target composer is still reachable.
+- 一些网站可能阻止合成 paste 或 drop 事件。此时插件会保留剪贴板截图，并在目标输入区仍可访问时尝试聚焦输入框。
 - The browser may require clipboard permission before `navigator.clipboard.read()` works.
 - 浏览器可能要求授予剪贴板权限后，`navigator.clipboard.read()` 才能工作。
 - Automatic mode does not open AI pages. It only attaches to already open ChatGPT, Claude, Gemini, or Doubao pages.

@@ -54,6 +54,14 @@ h1 {
   line-height: 1.2;
 }
 
+.header-copy {
+  max-width: 275px;
+  margin: 6px 0 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .status-dot {
   width: 10px;
   height: 10px;
@@ -199,6 +207,12 @@ h1 {
 .result-panel.is-error {
   border-color: #fecaca;
   background: #fff7f7;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
 }
 
 .link-button {

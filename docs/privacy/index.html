@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy - AI Screenshot Attacher</title>
+    <meta
+      name="description"
+      content="Privacy policy for AI Screenshot Attacher, a browser extension for attaching clipboard screenshots to supported AI chat pages."
+    />
+    <link rel="stylesheet" href="../assets/site.css" />
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="site-header">
+        <nav class="nav" aria-label="Main navigation">
+          <a class="brand" href="../">
+            <span class="brand-mark">AI</span>
+            <span>AI Screenshot Attacher</span>
+          </a>
+          <div class="nav-links">
+            <a href="../privacy/">Privacy / 隐私</a>
+            <a href="../support/">Support / 支持</a>
+            <a href="../faq/">FAQ / 常见问题</a>
+            <a href="https://github.com/lhwen686/ai-screenshot-attacher">GitHub</a>
+          </div>
+        </nav>
+      </header>
+
+      <main class="main">
+        <section class="section">
+          <p class="eyebrow">Privacy policy</p>
+          <h1>Conservative by design</h1>
+          <p class="lead">
+            AI Screenshot Attacher has one purpose: attach a clipboard screenshot to a supported AI chat page after your
+            action, or while you have explicitly enabled automatic mode.
+          </p>
+          <p class="lead" lang="zh-Hans">
+            AI Screenshot Attacher 只有一个用途：在你触发后，或在你明确开启自动模式后，把剪贴板截图附加到受支持的 AI
+            对话页面。
+          </p>
+        </section>
+
+        <section class="section language-pair">
+          <div class="content-block">
+            <p class="lang-label">English</p>
+            <h2>Data handling</h2>
+            <ul class="list">
+              <li>
+                Clipboard images are read in the extension's MV3 offscreen document, then passed to the selected
+                supported AI page for attachment.
+              </li>
+              <li>The selected AI website receives the image because the user chose to attach it there.</li>
+              <li>The extension does not upload screenshots to an extension-author server.</li>
+              <li>The extension does not store screenshot history.</li>
+              <li>The extension does not read or store chat history.</li>
+              <li>The extension does not collect analytics, telemetry, account identifiers, or browsing history.</li>
+              <li>The extension does not automatically send AI messages.</li>
+              <li>Settings are stored in <code>chrome.storage.sync</code> and may sync with the browser account.</li>
+              <li>
+                The latest operation status and automatic-mode duplicate state are stored only in
+                <code>chrome.storage.local</code>.
+              </li>
+            </ul>
+          </div>
+          <div class="content-block" lang="zh-Hans">
+            <p class="lang-label">简体中文</p>
+            <h2>数据处理</h2>
+            <ul class="list">
+              <li>剪贴板图片在插件的 MV3 offscreen document 中读取，然后传给用户选择的受支持 AI 页面用于附加。</li>
+              <li>用户选择附加图片到目标 AI 网站时，目标 AI 网站会收到该图片。</li>
+              <li>插件不会把截图上传到插件作者服务器。</li>
+              <li>插件不保存截图历史。</li>
+              <li>插件不读取或保存聊天记录。</li>
+              <li>插件不收集 analytics、遥测、账号标识或浏览历史。</li>
+              <li>插件不会自动发送 AI 消息。</li>
+              <li>设置保存在 <code>chrome.storage.sync</code> 中，可能随浏览器账号同步。</li>
+              <li>最近一次操作状态和自动模式去重状态仅保存在 <code>chrome.storage.local</code> 中。</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="section language-pair">
+          <div class="content-block">
+            <p class="lang-label">English</p>
+            <h2>Permissions</h2>
+            <ul class="list">
+              <li>
+                <strong>clipboardRead</strong>: reads a clipboard image after a manual trigger or enabled automatic
+                mode.
+              </li>
+              <li>
+                <strong>clipboardWrite</strong>: for a manual Gemini or Doubao action, may prepare the already captured
+                image immediately before a browser paste; it also restores the image after a failed attachment when
+                fallback is enabled. Automatic mode does not use the real-paste path.
+              </li>
+              <li>
+                <strong>tabs</strong>: finds, opens, focuses, and monitors supported AI pages; also opens user-requested
+                help links.
+              </li>
+              <li><strong>activeTab</strong>: supports temporary user-invoked page feedback on the current tab.</li>
+              <li>
+                <strong>scripting</strong>: injects the attachment runtime into supported AI pages and shows page
+                feedback.
+              </li>
+              <li>
+                <strong>storage</strong>: saves settings, latest operation status, and duplicate-suppression state.
+              </li>
+              <li><strong>offscreen</strong>: enables MV3 clipboard access from an offscreen document.</li>
+            </ul>
+          </div>
+          <div class="content-block" lang="zh-Hans">
+            <p class="lang-label">简体中文</p>
+            <h2>权限说明</h2>
+            <ul class="list">
+              <li><strong>clipboardRead</strong>：在手动触发或已开启自动模式时读取剪贴板图片。</li>
+              <li>
+                <strong>clipboardWrite</strong>：手动附加到 Gemini 或豆包时，可能会在浏览器粘贴前准备已捕获图片；
+                附加失败且回退开启时也会写回截图。自动模式不使用真实粘贴路径。
+              </li>
+              <li><strong>tabs</strong>：查找、打开、聚焦和监控受支持 AI 页面，也用于打开用户请求的帮助链接。</li>
+              <li><strong>activeTab</strong>：支持用户触发后的当前标签页临时反馈。</li>
+              <li><strong>scripting</strong>：向受支持 AI 页面注入附加运行时代码，并显示页面反馈。</li>
+              <li><strong>storage</strong>：保存设置、最近一次操作状态和去重状态。</li>
+              <li><strong>offscreen</strong>：通过 MV3 offscreen document 访问剪贴板。</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="section language-pair">
+          <div class="content-block">
+            <p class="lang-label">English</p>
+            <h2>Host permissions</h2>
+            <p>
+              Host permissions are limited to ChatGPT, Claude, Gemini, and Doubao pages. The extension does not request
+              access to every website.
+            </p>
+          </div>
+          <div class="content-block" lang="zh-Hans">
+            <p class="lang-label">简体中文</p>
+            <h2>站点权限</h2>
+            <p>站点权限仅限 ChatGPT、Claude、Gemini 和豆包页面。插件不请求访问所有网站。</p>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <p>Last updated: 2026-07-10. No analytics are included on this website.</p>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Screenshot Attacher</title>
+    <meta
+      name="description"
+      content="Attach clipboard screenshots to supported AI chat pages. Review before sending."
+    />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="site-header">
+        <nav class="nav" aria-label="Main navigation">
+          <a class="brand" href="./">
+            <span class="brand-mark">AI</span>
+            <span>AI Screenshot Attacher</span>
+          </a>
+          <div class="nav-links">
+            <a href="./privacy/">Privacy / 隐私</a>
+            <a href="./support/">Support / 支持</a>
+            <a href="./faq/">FAQ / 常见问题</a>
+            <a href="https://github.com/lhwen686/ai-screenshot-attacher">GitHub</a>
+          </div>
+        </nav>
+      </header>
+
+      <main class="main">
+        <section class="hero">
+          <div>
+            <p class="eyebrow">Chrome / Edge extension</p>
+            <h1>Clipboard screenshots to AI chat</h1>
+            <p class="lead">
+              Attach a copied screenshot to ChatGPT, Claude, Gemini, or Doubao. The extension attaches the image; you
+              review and send the message yourself.
+            </p>
+            <p class="lead" lang="zh-Hans">
+              把剪贴板截图附加到 ChatGPT、Claude、Gemini 或豆包。插件只负责附加图片，消息仍由你自己检查并发送。
+            </p>
+            <div class="hero-actions">
+              <a class="button primary" href="https://github.com/lhwen686/ai-screenshot-attacher">View on GitHub</a>
+              <a class="button" href="./privacy/">Read privacy policy</a>
+            </div>
+          </div>
+
+          <div class="product-surface" aria-label="Extension workflow preview">
+            <div class="browser-bar" aria-hidden="true">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+            </div>
+            <div class="mock-chat">
+              <div class="message"></div>
+              <div class="message secondary"></div>
+              <div class="composer">
+                <div class="thumbnail" aria-hidden="true"></div>
+                <div class="composer-text">Screenshot attached. Write your prompt, then send manually.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section two-column">
+          <div class="content-block">
+            <h2>What it does</h2>
+            <ul class="list">
+              <li>Reads a clipboard image after a shortcut or popup action.</li>
+              <li>Opens or focuses the selected supported AI page.</li>
+              <li>Attaches the image to the page input when the target site allows it.</li>
+              <li>Falls back to manual paste guidance when automatic attachment is rejected.</li>
+            </ul>
+          </div>
+          <div class="content-block" lang="zh-Hans">
+            <h2>它做什么</h2>
+            <ul class="list">
+              <li>在快捷键或弹窗按钮触发后读取剪贴板图片。</li>
+              <li>打开或聚焦你选择的受支持 AI 页面。</li>
+              <li>在目标网站允许时，把图片附加到输入区。</li>
+              <li>如果自动附加被网站拒绝，会提示你手动粘贴。</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="section two-column">
+          <div class="text-panel">
+            <h2>Privacy boundary</h2>
+            <p>
+              No analytics are included. The extension does not read chat history, does not store screenshot history,
+              and does not send AI messages automatically.
+            </p>
+          </div>
+          <div class="text-panel" lang="zh-Hans">
+            <h2>隐私边界</h2>
+            <p>没有 analytics。插件不读取聊天记录，不保存截图历史，也不会自动发送 AI 消息。</p>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <p>AI Screenshot Attacher. Open-source project documentation for browser extension store review.</p>
+      </footer>
+    </div>
+  </body>
+</html>

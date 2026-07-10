@@ -1,9 +1,8 @@
 import type { AiTargetAdapter, AttachResult, AdapterSelectorSet } from './types';
 import {
   GENERIC_ATTACHMENT_PREVIEW_SELECTORS,
-  GENERIC_DROP_TARGET_SELECTORS,
   GENERIC_FILE_INPUT_SELECTORS,
-  GENERIC_TEXT_INPUT_SELECTORS,
+  findExplicitComposerRoot,
   focusFirstInput,
   isVisible,
   querySelectorCandidates,
@@ -19,29 +18,47 @@ import {
 const uploadTextPatterns = [/uploading/i, /processing/i, /attached/i, /上传中/, /正在上传/, /处理中/, /已附加/];
 const uploadMenuTextPattern = /upload|attach|image|photo|file|device|上传|附件|图片|照片|文件|设备|本机/i;
 const attachmentButtonTextPattern = /add|attach|upload|plus|more|添加|附件|上传|更多/i;
+const submitActionTextPattern = /send|submit|发送|提交/i;
 const invalidAttachmentTextPattern =
   /文件中没有内容|文件为空|empty file|file is empty|has no content|unable to upload|无法上传/i;
+const strongInputSelectors = [
+  'div[contenteditable="true"][aria-label*="prompt" i]',
+  'div[contenteditable="true"][aria-label*="提示" i]',
+  'textarea[aria-label*="prompt" i]',
+  'textarea[aria-label*="提示" i]',
+  '[aria-label*="Enter a prompt" i]',
+  '[aria-label*="输入提示" i]'
+];
+const explicitComposerInputSelectors = [
+  'bard-text-input .ql-editor[contenteditable="true"]',
+  'bard-text-input textarea',
+  'bard-text-input [contenteditable="true"]',
+  'rich-textarea textarea',
+  'rich-textarea [contenteditable="true"]',
+  '[data-testid*="composer" i] textarea',
+  '[data-testid*="composer" i] [contenteditable="true"]',
+  '[data-testid*="composer" i] [role="textbox"]',
+  '[data-test-id*="composer" i] textarea',
+  '[data-test-id*="composer" i] [contenteditable="true"]',
+  '[data-test-id*="composer" i] [role="textbox"]',
+  '[class*="composer" i] textarea',
+  '[class*="composer" i] [contenteditable="true"]',
+  '[class*="composer" i] [role="textbox"]'
+];
+const geminiMenuRootSelectors = ['[role="menu"]', '[role="listbox"]'];
+const geminiActionSelectors = [
+  'button',
+  '[role="button"]',
+  '[role="menuitem"]',
+  '[role="option"]',
+  'input[type="button"]',
+  'div[aria-label]',
+  'span[aria-label]'
+];
 
 const selectors: AdapterSelectorSet = {
   fileInputs: [...GENERIC_FILE_INPUT_SELECTORS],
-  textInputs: [
-    '.ql-editor[contenteditable="true"]',
-    'div[contenteditable="true"][aria-label*="prompt" i]',
-    'div[contenteditable="true"][aria-label*="提示" i]',
-    'main [contenteditable]:not([contenteditable="false"])',
-    'bard-text-input textarea',
-    'bard-text-input [contenteditable="true"]',
-    'rich-textarea textarea',
-    'rich-textarea [contenteditable="true"]',
-    'textarea[aria-label*="prompt" i]',
-    'textarea[aria-label*="提示" i]',
-    '[aria-label*="Enter a prompt" i]',
-    '[aria-label*="输入提示" i]',
-    'main textarea',
-    'main [contenteditable="true"]',
-    '[role="textbox"]',
-    ...GENERIC_TEXT_INPUT_SELECTORS
-  ],
+  textInputs: [...strongInputSelectors, ...explicitComposerInputSelectors],
   dropTargets: [
     'bard-text-input',
     'rich-textarea',
@@ -51,11 +68,9 @@ const selectors: AdapterSelectorSet = {
     '[aria-label*="问问 Gemini" i]',
     '[aria-label*="prompt" i]',
     '[aria-label*="提示" i]',
-    'main form',
     'form',
-    'main',
     '[role="textbox"]',
-    ...GENERIC_DROP_TARGET_SELECTORS
+    '[data-testid*="composer" i]'
   ],
   attachmentPreviews: [
     'file-preview',
@@ -93,37 +108,73 @@ export const geminiAdapter: AiTargetAdapter = {
   },
 
   async waitUntilReady(timeoutMs: number) {
-    return waitForAnyElement([...selectors.textInputs, ...selectors.fileInputs, ...selectors.dropTargets], timeoutMs);
+    return waitForAnyElement(selectors.textInputs, timeoutMs);
   },
 
-  async attachImage(file: File): Promise<AttachResult> {
-    const uploadResult = await tryGeminiUpload(file);
-    if (uploadResult.ok) {
+  async attachImage(file: File, options): Promise<AttachResult> {
+    const composerRoot = findActiveGeminiComposerRoot();
+    if (!composerRoot) {
+      return { ok: false, method: 'clipboard-fallback', outcome: 'rejected', error: 'INPUT_NOT_FOUND' };
+    }
+
+    const allowClipboardPaste = options?.allowClipboardPaste ?? true;
+    let pasteEventResult: AttachResult = {
+      ok: false,
+      method: 'paste-event',
+      outcome: 'rejected',
+      error: 'PASTE_EVENT_NOT_ATTEMPTED'
+    };
+    if (!allowClipboardPaste) {
+      pasteEventResult = await tryAttachViaPasteRelaxed(file, selectors.textInputs, selectors.attachmentPreviews, {
+        timeoutMs: 4500,
+        successTextPatterns: uploadTextPatterns,
+        scopeRoot: composerRoot
+      });
+      if (pasteEventResult.ok || pasteEventResult.outcome === 'unknown') {
+        return pasteEventResult;
+      }
+    }
+
+    const uploadResult = await tryGeminiUpload(file, composerRoot);
+    if (uploadResult.ok || uploadResult.outcome === 'unknown') {
       return uploadResult;
     }
 
-    const pasteCommandResult = await tryPasteClipboardViaCommand(selectors.textInputs, selectors.attachmentPreviews, {
-      timeoutMs: 4500,
-      successTextPatterns: uploadTextPatterns
-    });
-    if (pasteCommandResult.ok) {
-      return pasteCommandResult;
+    let pasteCommandResult: AttachResult = {
+      ok: false,
+      method: 'paste-command',
+      outcome: 'rejected',
+      error: 'CLIPBOARD_PASTE_DISABLED'
+    };
+    if (allowClipboardPaste) {
+      pasteCommandResult = await tryPasteClipboardViaCommand(selectors.textInputs, selectors.attachmentPreviews, {
+        timeoutMs: 4500,
+        successTextPatterns: uploadTextPatterns,
+        scopeRoot: composerRoot
+      });
+      if (pasteCommandResult.ok || pasteCommandResult.outcome === 'unknown') {
+        return pasteCommandResult;
+      }
     }
 
-    const pasteEventResult = await tryAttachViaPasteRelaxed(file, selectors.textInputs, selectors.attachmentPreviews, {
-      timeoutMs: 4500,
-      successTextPatterns: uploadTextPatterns
-    });
-    if (pasteEventResult.ok) {
-      return pasteEventResult;
+    if (allowClipboardPaste) {
+      pasteEventResult = await tryAttachViaPasteRelaxed(file, selectors.textInputs, selectors.attachmentPreviews, {
+        timeoutMs: 4500,
+        successTextPatterns: uploadTextPatterns,
+        scopeRoot: composerRoot
+      });
+      if (pasteEventResult.ok || pasteEventResult.outcome === 'unknown') {
+        return pasteEventResult;
+      }
     }
 
-    const dropResult = await tryAttachViaDrop(file, selectors.dropTargets, selectors.attachmentPreviews);
-    return dropResult.ok
+    const dropResult = await tryAttachViaDrop(file, selectors.dropTargets, selectors.attachmentPreviews, composerRoot);
+    return dropResult.ok || dropResult.outcome === 'unknown'
       ? dropResult
       : {
           ok: false,
           method: 'clipboard-fallback',
+          outcome: 'rejected',
           error:
             dropResult.error ??
             pasteEventResult.error ??
@@ -134,115 +185,202 @@ export const geminiAdapter: AiTargetAdapter = {
   },
 
   async focusInput() {
-    focusFirstInput(selectors.textInputs);
+    const composerRoot = findActiveGeminiComposerRoot();
+    if (composerRoot) {
+      focusFirstInput(selectors.textInputs, composerRoot);
+    }
   }
 };
 
-async function tryGeminiUpload(file: File): Promise<AttachResult> {
-  const directResult = await attachToGeminiFileInputs(file);
-  if (directResult.ok) {
+async function tryGeminiUpload(file: File, composerRoot: HTMLElement): Promise<AttachResult> {
+  const composerRoots = [composerRoot];
+  const directResult = await attachToGeminiFileInputs(file, composerRoots, []);
+  if (directResult.ok || directResult.outcome === 'unknown' || directResult.error === 'GEMINI_FILE_INPUT_INVALID') {
     return directResult;
   }
 
-  await openGeminiAttachmentEntryPoint();
+  const existingMenuRoots = new Set(findVisibleGeminiMenuRoots());
+  openGeminiAttachmentEntryPoint(composerRoots);
   await sleep(150);
-  await clickGeminiUploadMenuItem();
+  const newMenuRoots = findVisibleGeminiMenuRoots().filter((root) => !existingMenuRoots.has(root));
+  clickGeminiUploadMenuItem(newMenuRoots);
   await sleep(150);
 
-  const menuResult = await attachToGeminiFileInputs(file);
-  return menuResult.ok
+  const menuResult = await attachToGeminiFileInputs(file, composerRoots, newMenuRoots);
+  return menuResult.ok || menuResult.outcome === 'unknown'
     ? menuResult
     : {
         ok: false,
         method: 'file-input',
+        outcome: 'rejected',
         error: menuResult.error ?? directResult.error ?? 'GEMINI_UPLOAD_INPUT_NOT_FOUND'
       };
 }
 
-async function attachToGeminiFileInputs(file: File): Promise<AttachResult> {
-  const inputs = querySelectorCandidates<HTMLInputElement>(selectors.fileInputs, { visibleOnly: false }).filter(
-    (input) => input.type === 'file' && acceptsGeminiImage(input)
-  );
+async function attachToGeminiFileInputs(
+  file: File,
+  composerRoots: HTMLElement[],
+  menuRoots: HTMLElement[]
+): Promise<AttachResult> {
+  const inputs = findGeminiFileInputs([...composerRoots, ...menuRoots]);
 
-  let lastError: string | undefined = inputs.length > 0 ? undefined : 'FILE_INPUT_NOT_FOUND';
+  if (inputs.length === 0) {
+    return { ok: false, method: 'file-input', outcome: 'rejected', error: 'FILE_INPUT_NOT_FOUND' };
+  }
 
   for (const input of inputs) {
+    let mutated = false;
     try {
-      const beforeCount = snapshotAttachmentCount(selectors.attachmentPreviews);
-      const beforeText = document.body?.innerText ?? '';
+      const observationRoot = composerRoots[0] ?? input;
+      const beforeCount = snapshotAttachmentCount(selectors.attachmentPreviews, observationRoot);
+      const beforeText = getObservationText(observationRoot);
       const dataTransfer = new DataTransfer();
       dataTransfer.items.add(file);
       input.files = dataTransfer.files;
+      mutated = true;
       input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
       input.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
 
-      const result = await waitForGeminiUploadOutcome(beforeCount, beforeText, file);
-      if (result.ok) {
-        return result;
-      }
-      lastError = result.error;
+      const result = await waitForGeminiUploadOutcome(beforeCount, beforeText, file, observationRoot);
+      return result;
     } catch {
-      lastError = 'FILE_INPUT_ATTACH_FAILED';
+      if (mutated) {
+        return { ok: false, method: 'file-input', outcome: 'unknown', error: 'FILE_INPUT_ATTACH_UNCONFIRMED' };
+      }
+      continue;
     }
   }
 
-  return { ok: false, method: 'file-input', error: lastError ?? 'FILE_INPUT_ATTACH_FAILED' };
+  return { ok: false, method: 'file-input', outcome: 'rejected', error: 'FILE_INPUT_ATTACH_FAILED' };
 }
 
-async function waitForGeminiUploadOutcome(beforeCount: number, beforeText: string, file: File): Promise<AttachResult> {
+async function waitForGeminiUploadOutcome(
+  beforeCount: number,
+  beforeText: string,
+  file: File,
+  observationRoot: ParentNode
+): Promise<AttachResult> {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < 2500) {
-    const currentText = document.body?.innerText ?? '';
+    const currentText = getObservationText(observationRoot);
     const newText = currentText.slice(Math.min(beforeText.length, currentText.length));
 
-    if (invalidAttachmentTextPattern.test(newText) || invalidAttachmentTextPattern.test(currentText)) {
-      return { ok: false, method: 'file-input', error: 'GEMINI_FILE_INPUT_INVALID' };
+    if (invalidAttachmentTextPattern.test(newText)) {
+      return { ok: false, method: 'file-input', outcome: 'unknown', error: 'GEMINI_FILE_INPUT_INVALID' };
     }
 
     if (
-      snapshotAttachmentCount(selectors.attachmentPreviews) > beforeCount ||
-      uploadTextPatterns.some((pattern) => pattern.test(newText) || pattern.test(currentText)) ||
-      (await waitForAttachmentChange(selectors.attachmentPreviews, beforeCount, 100, file))
+      snapshotAttachmentCount(selectors.attachmentPreviews, observationRoot) > beforeCount ||
+      uploadTextPatterns.some((pattern) => pattern.test(newText)) ||
+      (await waitForAttachmentChange(
+        selectors.attachmentPreviews,
+        beforeCount,
+        100,
+        file,
+        observationRoot,
+        beforeText.includes(file.name)
+      ))
     ) {
-      return { ok: true, method: 'file-input' };
+      return { ok: true, method: 'file-input', outcome: 'confirmed' };
     }
 
     await sleep(100);
   }
 
-  return { ok: false, method: 'file-input', error: 'FILE_INPUT_ATTACH_FAILED' };
+  return { ok: false, method: 'file-input', outcome: 'unknown', error: 'FILE_INPUT_ATTACH_UNCONFIRMED' };
 }
 
-async function openGeminiAttachmentEntryPoint(): Promise<void> {
-  const namedButton = visibleActionCandidates().find((candidate) =>
-    attachmentButtonTextPattern.test(getElementName(candidate))
-  );
+function openGeminiAttachmentEntryPoint(composerRoots: HTMLElement[]): void {
+  const candidates = visibleActionCandidates(composerRoots);
+  const namedButton = candidates.find((candidate) => {
+    const name = getElementName(candidate);
+    return attachmentButtonTextPattern.test(name) && !isSubmitAction(candidate, name);
+  });
   if (namedButton) {
     namedButton.click();
-    return;
   }
-
-  const positionedButton = visibleActionCandidates()
-    .filter((candidate) => {
-      const rect = candidate.getBoundingClientRect();
-      return rect.top > window.innerHeight * 0.35 && rect.left > 80 && rect.left < window.innerWidth * 0.5;
-    })
-    .sort((left, right) => left.getBoundingClientRect().left - right.getBoundingClientRect().left)[0];
-
-  positionedButton?.click();
 }
 
-async function clickGeminiUploadMenuItem(): Promise<void> {
-  const menuItem = visibleActionCandidates().find((candidate) => uploadMenuTextPattern.test(getElementName(candidate)));
+function clickGeminiUploadMenuItem(menuRoots: HTMLElement[]): void {
+  const menuItem = visibleActionCandidates(menuRoots).find((candidate) => {
+    const name = getElementName(candidate);
+    return uploadMenuTextPattern.test(name) && !isSubmitAction(candidate, name);
+  });
   menuItem?.click();
 }
 
-function visibleActionCandidates(): HTMLElement[] {
-  return querySelectorCandidates<HTMLElement>(
-    ['button', '[role="button"]', '[role="menuitem"]', 'input[type="button"]', 'div[aria-label]', 'span[aria-label]'],
-    { visibleOnly: true }
-  ).filter(isVisible);
+function isSubmitAction(element: HTMLElement, name: string): boolean {
+  if (submitActionTextPattern.test(name)) {
+    return true;
+  }
+
+  return (
+    (element instanceof HTMLButtonElement || element instanceof HTMLInputElement) &&
+    element.type === 'submit' &&
+    element.form !== null
+  );
+}
+
+function visibleActionCandidates(roots: HTMLElement[]): HTMLElement[] {
+  const candidates = new Set<HTMLElement>();
+
+  for (const root of roots) {
+    for (const selector of geminiActionSelectors) {
+      try {
+        root.querySelectorAll<HTMLElement>(selector).forEach((candidate) => {
+          if (isVisible(candidate)) {
+            candidates.add(candidate);
+          }
+        });
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  return Array.from(candidates);
+}
+
+function findActiveGeminiComposerRoot(): HTMLElement | undefined {
+  const inputs = querySelectorCandidates<HTMLElement>(selectors.textInputs, { visibleOnly: true });
+  for (const input of inputs) {
+    const explicitRoot = findExplicitComposerRoot(input);
+    if (explicitRoot) {
+      return explicitRoot;
+    }
+
+    if (strongInputSelectors.some((selector) => input.matches(selector))) {
+      const form = input.closest('form');
+      return form instanceof HTMLElement ? form : input;
+    }
+  }
+
+  return undefined;
+}
+
+function findVisibleGeminiMenuRoots(): HTMLElement[] {
+  return querySelectorCandidates<HTMLElement>(geminiMenuRootSelectors, { visibleOnly: true });
+}
+
+function findGeminiFileInputs(roots: HTMLElement[]): HTMLInputElement[] {
+  const inputs = new Set<HTMLInputElement>();
+
+  for (const root of roots) {
+    for (const selector of selectors.fileInputs) {
+      try {
+        root.querySelectorAll<HTMLInputElement>(selector).forEach((input) => {
+          if (input.type === 'file' && acceptsGeminiImage(input)) {
+            inputs.add(input);
+          }
+        });
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  return Array.from(inputs);
 }
 
 function getElementName(element: HTMLElement): string {
@@ -267,4 +405,12 @@ function acceptsGeminiImage(input: HTMLInputElement): boolean {
     accept.includes('.jpeg') ||
     accept.includes('.webp')
   );
+}
+
+function getObservationText(observationRoot: ParentNode): string {
+  if (observationRoot instanceof HTMLElement) {
+    return observationRoot.innerText ?? observationRoot.textContent ?? '';
+  }
+
+  return document.body?.innerText ?? document.body?.textContent ?? '';
 }

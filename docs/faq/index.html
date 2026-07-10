@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FAQ - AI Screenshot Attacher</title>
+    <meta name="description" content="Frequently asked questions for AI Screenshot Attacher." />
+    <link rel="stylesheet" href="../assets/site.css" />
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="site-header">
+        <nav class="nav" aria-label="Main navigation">
+          <a class="brand" href="../">
+            <span class="brand-mark">AI</span>
+            <span>AI Screenshot Attacher</span>
+          </a>
+          <div class="nav-links">
+            <a href="../privacy/">Privacy / 隐私</a>
+            <a href="../support/">Support / 支持</a>
+            <a href="../faq/">FAQ / 常见问题</a>
+            <a href="https://github.com/lhwen686/ai-screenshot-attacher">GitHub</a>
+          </div>
+        </nav>
+      </header>
+
+      <main class="main">
+        <section class="section">
+          <p class="eyebrow">FAQ</p>
+          <h1>Clear answers for store review</h1>
+          <p class="lead">
+            These answers describe the current extension behavior conservatively. The extension supports selected AI
+            sites only and does not bypass site limits.
+          </p>
+          <p class="lead" lang="zh-Hans">以下回答保守描述当前插件行为。插件只支持指定 AI 网站，不绕过目标网站限制。</p>
+        </section>
+
+        <section class="section faq-list">
+          <article class="text-panel">
+            <div class="language-pair">
+              <div>
+                <p class="lang-label">English</p>
+                <h2>Why are clipboard permissions needed?</h2>
+                <p>
+                  `clipboardRead` is needed to read the screenshot you copied after you trigger the extension or enable
+                  automatic mode. For a manual Gemini or Doubao action, `clipboardWrite` may prepare the captured image
+                  immediately before a browser paste; it also supports the optional failure fallback. Automatic mode
+                  does not use the real-paste path.
+                </p>
+              </div>
+              <div lang="zh-Hans">
+                <p class="lang-label">简体中文</p>
+                <h2>为什么需要剪贴板权限？</h2>
+                <p>
+                  `clipboardRead` 用于在你触发插件或开启自动模式后读取刚复制的截图。手动附加到 Gemini 或豆包时，
+                  `clipboardWrite`
+                  可能会在浏览器粘贴前准备本次捕获的图片，也用于可选的失败回退。自动模式不使用真实粘贴路径。
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <article class="text-panel">
+            <div class="language-pair">
+              <div>
+                <p class="lang-label">English</p>
+                <h2>Why are site permissions needed?</h2>
+                <p>
+                  Site permissions allow the extension to open, focus, and inject the attachment runtime into supported
+                  AI pages only: ChatGPT, Claude, Gemini, and Doubao. The extension does not request access to all
+                  websites.
+                </p>
+              </div>
+              <div lang="zh-Hans">
+                <p class="lang-label">简体中文</p>
+                <h2>为什么需要站点权限？</h2>
+                <p>
+                  站点权限让插件能够打开、聚焦并向受支持 AI 页面注入附加运行时代码。范围仅限 ChatGPT、Claude、Gemini
+                  和豆包，不请求访问所有网站。
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <article class="text-panel">
+            <div class="language-pair">
+              <div>
+                <p class="lang-label">English</p>
+                <h2>Why does the extension not send messages automatically?</h2>
+                <p>
+                  Sending stays manual so you can review the attachment, edit your prompt, and decide what to share with
+                  the target AI site. This also avoids accidental submission of private screenshots.
+                </p>
+              </div>
+              <div lang="zh-Hans">
+                <p class="lang-label">简体中文</p>
+                <h2>为什么插件不自动发送消息？</h2>
+                <p>发送保持手动，这样你可以检查附件、修改提示词，并决定是否分享给目标 AI 网站，避免误发私密截图。</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="text-panel">
+            <div class="language-pair">
+              <div>
+                <p class="lang-label">English</p>
+                <h2>What happens when attachment fails?</h2>
+                <p>
+                  Some AI sites reject synthetic paste, drop, or file-input actions. When attachment fails, the
+                  extension can keep the screenshot on the clipboard and focus the input so you can paste manually.
+                </p>
+              </div>
+              <div lang="zh-Hans">
+                <p class="lang-label">简体中文</p>
+                <h2>附加失败时会发生什么？</h2>
+                <p>
+                  一些 AI 网站会拒绝合成 paste、drop 或 file-input
+                  操作。附加失败时，插件可以把截图保留在剪贴板，并聚焦输入框， 方便你手动粘贴。
+                </p>
+              </div>
+            </div>
+          </article>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <p>No analytics are included on this website. For support, use GitHub Issues.</p>
+      </footer>
+    </div>
+  </body>
+</html>

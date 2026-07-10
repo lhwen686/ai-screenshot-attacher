@@ -1,9 +1,15 @@
 export type AttachMethod = 'file-input' | 'paste-event' | 'paste-command' | 'drop-event' | 'clipboard-fallback';
+export type AttachOutcome = 'confirmed' | 'rejected' | 'unknown';
 
 export interface AttachResult {
   ok: boolean;
   method?: AttachMethod;
   error?: string;
+  outcome?: AttachOutcome;
+}
+
+export interface AttachOptions {
+  allowClipboardPaste: boolean;
 }
 
 export interface AiTargetAdapter {
@@ -14,7 +20,7 @@ export interface AiTargetAdapter {
 
   detect(): boolean;
   waitUntilReady(timeoutMs: number): Promise<boolean>;
-  attachImage(file: File): Promise<AttachResult>;
+  attachImage(file: File, options?: AttachOptions): Promise<AttachResult>;
   focusInput?(): Promise<void>;
 }
 
