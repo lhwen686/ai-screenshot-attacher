@@ -24,6 +24,7 @@ export interface AttachRuntimePayload {
   targetId: TargetId;
   image: ClipboardImagePayload;
   settings: {
+    allowClipboardPaste: boolean;
     showPageToast: boolean;
     writeBackOnFailure: boolean;
     debugLogs: boolean;
@@ -51,6 +52,7 @@ export type AutoClipboardImageDetectedMessage = {
   type: 'AUTO_CLIPBOARD_IMAGE_DETECTED';
   image: ClipboardImagePayload;
   fingerprint: string;
+  deliveryId: string;
 };
 
 export type AutoMonitorStatusChangedMessage = {
@@ -58,9 +60,15 @@ export type AutoMonitorStatusChangedMessage = {
   status: AutoMonitorStatus;
 };
 
+export type OffscreenClipboardWriteTimedOutMessage = {
+  type: 'OFFSCREEN_CLIPBOARD_WRITE_TIMED_OUT';
+  fingerprint?: string;
+};
+
 export type UiMessage =
   | PopupAttachMessage
   | GetLastOperationMessage
   | GetAutoMonitorStatusMessage
   | AutoClipboardImageDetectedMessage
-  | AutoMonitorStatusChangedMessage;
+  | AutoMonitorStatusChangedMessage
+  | OffscreenClipboardWriteTimedOutMessage;

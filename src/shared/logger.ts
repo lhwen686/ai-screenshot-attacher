@@ -3,7 +3,20 @@ type LogContext = Record<string, unknown>;
 
 let debugEnabled = false;
 
+const imageDataUrlPattern = /data:image\/[a-z0-9.+-]+;base64,/i;
+const base64PayloadPattern = /^[a-z0-9+/_-]{128,}={0,2}$/i;
+const sensitiveTextKeys = new Set(['chat', 'content', 'conversation', 'prompt', 'text', 'transcript']);
+
+function sanitizeString(value: string): string {
+  const compactValue = value.replace(/\s/g, '');
+  return imageDataUrlPattern.test(value) || base64PayloadPattern.test(compactValue) ? '[redacted]' : value;
+}
+
 function sanitize(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return sanitizeString(value);
+  }
+
   if (!value || typeof value !== 'object') {
     return value;
   }
@@ -11,7 +24,7 @@ function sanitize(value: unknown): unknown {
   if (value instanceof Error) {
     return {
       name: value.name,
-      message: value.message
+      message: sanitizeString(value.message)
     };
   }
 
@@ -27,7 +40,8 @@ function sanitize(value: unknown): unknown {
       lowerKey.includes('base64') ||
       lowerKey.includes('binary') ||
       lowerKey.includes('blob') ||
-      lowerKey.includes('file')
+      lowerKey.includes('file') ||
+      sensitiveTextKeys.has(lowerKey)
     ) {
       result[key] = '[redacted]';
       continue;

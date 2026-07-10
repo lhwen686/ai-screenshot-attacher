@@ -29,7 +29,9 @@ async function run(payload: AttachRuntimePayload): Promise<AttachResult> {
   }
 
   const file = dataUrlToFile(payload.image);
-  const result = await adapter.attachImage(file);
+  const result = await adapter.attachImage(file, {
+    allowClipboardPaste: payload.settings.allowClipboardPaste
+  });
 
   if (result.ok) {
     if (payload.settings.showPageToast) {
@@ -38,7 +40,9 @@ async function run(payload: AttachRuntimePayload): Promise<AttachResult> {
     return result;
   }
 
-  await adapter.focusInput?.();
+  if (result.outcome !== 'unknown') {
+    await adapter.focusInput?.();
+  }
   return result;
 }
 

@@ -1,11 +1,29 @@
 import { readClipboardImage } from '../clipboard/readClipboardImage';
 import { writeClipboardImage } from '../clipboard/writeClipboardImage';
+import { runWithClipboardOperationLock } from '../clipboard/clipboardOperationLock';
+import type { ClipboardReadResult } from '../clipboard/types';
 import { AI_TARGETS, LAST_OPERATION_KEY, USER_MESSAGES, type TargetId } from '../shared/constants';
 import { getErrorMessage, type AttachErrorType } from '../shared/errors';
 import { logger } from '../shared/logger';
 import type { OperationResult } from '../shared/messages';
-import { getSettings } from '../shared/settings';
+import { getSettings, type AppSettings } from '../shared/settings';
+import { withTimeout } from '../shared/withTimeout';
 import { executeAttachRuntime, getOrCreateTargetTab, showToastOnActivePage, showToastOnPage } from './tabManager';
+
+let manualAttachWorkflowTail: Promise<void> = Promise.resolve();
+const MANUAL_SETTINGS_TIMEOUT_MS = 5000;
+const MANUAL_FEEDBACK_TIMEOUT_MS = 5000;
+let latestOperationResult: OperationResult | undefined;
+let operationPersistenceRevision = 0;
+let actionFeedbackRevision = 0;
+
+interface PreparedManualAttach {
+  settings: AppSettings;
+  finalTargetId: TargetId;
+  clipboardResult: ClipboardReadResult;
+}
+
+type SettledPreparation = { ok: true; value: PreparedManualAttach } | { ok: false; error: unknown };
 
 export async function handleCommand(command: string): Promise<OperationResult> {
   switch (command) {
@@ -23,20 +41,50 @@ export async function handleCommand(command: string): Promise<OperationResult> {
   }
 }
 
-export async function attachToTarget(targetId?: TargetId): Promise<OperationResult> {
-  const settings = await getSettings();
+export function attachToTarget(targetId?: TargetId): Promise<OperationResult> {
+  const preparation: Promise<SettledPreparation> = prepareManualAttach(targetId).then(
+    (value) => ({ ok: true, value }),
+    (error: unknown) => ({ ok: false, error })
+  );
+  const operation = manualAttachWorkflowTail
+    .then(() => preparation)
+    .then((settled) => {
+      if (!settled.ok) {
+        throw settled.error;
+      }
+      return attachToTargetUnlocked(settled.value);
+    });
+  manualAttachWorkflowTail = operation.then(
+    () => undefined,
+    () => undefined
+  );
+  return operation;
+}
+
+async function prepareManualAttach(targetId?: TargetId): Promise<PreparedManualAttach> {
+  const [settings, clipboardResult] = await Promise.all([
+    withTimeout(getSettings(), MANUAL_SETTINGS_TIMEOUT_MS, 'MANUAL_SETTINGS_TIMEOUT'),
+    runWithClipboardOperationLock(() => readClipboardImage())
+  ]);
+  return {
+    settings,
+    finalTargetId: targetId ?? settings.defaultTargetId,
+    clipboardResult
+  };
+}
+
+async function attachToTargetUnlocked(prepared: PreparedManualAttach): Promise<OperationResult> {
+  const { settings, finalTargetId, clipboardResult } = prepared;
   logger.configure({ debug: settings.debugLogs });
 
-  const finalTargetId = targetId ?? settings.defaultTargetId;
   const target = AI_TARGETS[finalTargetId];
 
   logger.info('attach requested', { targetId: finalTargetId });
 
-  const clipboardResult = await readClipboardImage();
   if (!clipboardResult.ok) {
     const result = operationFailure(finalTargetId, clipboardResult.error, clipboardResult.message);
     await recordOperationResult(result);
-    await showToastOnActivePage(result.message, 'error');
+    await showManualToast(() => showToastOnActivePage(result.message, 'error'));
     return result;
   }
 
@@ -53,6 +101,7 @@ export async function attachToTarget(targetId?: TargetId): Promise<OperationResu
       targetId: finalTargetId,
       image: clipboardResult.image,
       settings: {
+        allowClipboardPaste: true,
         showPageToast: settings.showPageToast,
         writeBackOnFailure: settings.writeBackOnFailure,
         debugLogs: settings.debugLogs
@@ -73,27 +122,32 @@ export async function attachToTarget(targetId?: TargetId): Promise<OperationResu
       return result;
     }
 
-    const fallbackMessage = settings.writeBackOnFailure
-      ? USER_MESSAGES.attachFallback
-      : USER_MESSAGES.attachFallbackNoWrite;
+    const mutationUnconfirmed =
+      attachResult.outcome === 'unknown' || attachResult.error === 'PREVIOUS_OPERATION_UNCONFIRMED';
+    const fallbackMessage = mutationUnconfirmed
+      ? USER_MESSAGES.attachUnconfirmed
+      : settings.writeBackOnFailure
+        ? USER_MESSAGES.attachFallback
+        : USER_MESSAGES.attachFallbackNoWrite;
     let finalMessage: string = fallbackMessage;
 
-    if (settings.writeBackOnFailure) {
-      const writeResult = await writeClipboardImage(clipboardResult.image);
+    if (settings.writeBackOnFailure && !mutationUnconfirmed) {
+      const writeResult = await runWithClipboardOperationLock(() => writeClipboardImage(clipboardResult.image));
       if (!writeResult.ok) {
         finalMessage = `${fallbackMessage}（写回剪贴板失败，但原剪贴板通常仍保留截图。）`;
       }
     }
 
-    if (settings.showPageToast) {
-      await showToastOnPage(tabId, finalMessage, 'error');
+    if (settings.showPageToast && tabId !== undefined) {
+      const toastTabId = tabId;
+      await showManualToast(() => showToastOnPage(toastTabId, finalMessage, 'error'));
     }
 
     const result: OperationResult = {
       ok: false,
       targetId: finalTargetId,
       targetName: target.name,
-      method: 'clipboard-fallback',
+      method: mutationUnconfirmed ? attachResult.method : 'clipboard-fallback',
       error: attachResult.error ?? 'AUTO_ATTACH_FAILED',
       message: finalMessage,
       trigger: 'manual',
@@ -112,8 +166,9 @@ export async function attachToTarget(targetId?: TargetId): Promise<OperationResu
         ? USER_MESSAGES.targetLoadFailed
         : getErrorMessage('TARGET_TAB_FAILED');
 
-    if (tabId && settings.showPageToast) {
-      await showToastOnPage(tabId, message, 'error');
+    const toastTabId = tabId;
+    if (toastTabId && settings.showPageToast) {
+      await showManualToast(() => showToastOnPage(toastTabId, message, 'error'));
     }
 
     const result = operationFailure(finalTargetId, 'TARGET_TAB_FAILED', message);
@@ -132,8 +187,59 @@ async function saveLastOperation(result: OperationResult): Promise<void> {
 }
 
 export async function recordOperationResult(result: OperationResult): Promise<void> {
-  await saveLastOperation(result);
-  await setActionFeedback(result);
+  latestOperationResult = result;
+  const persistenceRevision = ++operationPersistenceRevision;
+  const feedbackRevision = ++actionFeedbackRevision;
+  try {
+    await withTimeout(
+      persistOperationResult(result, persistenceRevision),
+      MANUAL_FEEDBACK_TIMEOUT_MS,
+      'OPERATION_RESULT_TIMEOUT'
+    );
+  } catch (error) {
+    logger.warn('failed to persist operation result', { error });
+  }
+
+  if (feedbackRevision !== actionFeedbackRevision) {
+    return;
+  }
+  try {
+    await withTimeout(
+      persistActionFeedback(result, feedbackRevision),
+      MANUAL_FEEDBACK_TIMEOUT_MS,
+      'ACTION_FEEDBACK_TIMEOUT'
+    );
+  } catch (error) {
+    logger.warn('failed to update action feedback', { error });
+  }
+}
+
+function persistOperationResult(result: OperationResult, revision: number): Promise<void> {
+  const persistence = saveLastOperation(result);
+  const reconcile = () => {
+    if (revision === operationPersistenceRevision || !latestOperationResult) {
+      return;
+    }
+    void persistOperationResult(latestOperationResult, operationPersistenceRevision).catch((error) => {
+      logger.warn('late operation result reconciliation failed', { error });
+    });
+  };
+  void persistence.then(reconcile, reconcile);
+  return persistence;
+}
+
+function persistActionFeedback(result: OperationResult, revision: number): Promise<void> {
+  const persistence = setActionFeedback(result);
+  const reconcile = () => {
+    if (revision === actionFeedbackRevision || !latestOperationResult) {
+      return;
+    }
+    void persistActionFeedback(latestOperationResult, actionFeedbackRevision).catch((error) => {
+      logger.warn('late action feedback reconciliation failed', { error });
+    });
+  };
+  void persistence.then(reconcile, reconcile);
+  return persistence;
 }
 
 async function setActionFeedback(result: OperationResult): Promise<void> {
@@ -152,4 +258,12 @@ function operationFailure(targetId: TargetId, error: AttachErrorType | string, m
     trigger: 'manual',
     at: new Date().toISOString()
   };
+}
+
+async function showManualToast(operation: () => Promise<void>): Promise<void> {
+  try {
+    await withTimeout(operation(), MANUAL_FEEDBACK_TIMEOUT_MS, 'PAGE_TOAST_TIMEOUT');
+  } catch (error) {
+    logger.warn('page toast timed out', { error });
+  }
 }

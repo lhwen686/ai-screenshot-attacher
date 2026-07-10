@@ -1,4 +1,8 @@
 export const EXTENSION_NAME = 'AI Screenshot Attacher';
+export const PROJECT_URL = 'https://github.com/lhwen686/ai-screenshot-attacher';
+export const SUPPORT_URL = `${PROJECT_URL}/issues/new/choose`;
+export const PRIVACY_URL = 'https://lhwen686.github.io/ai-screenshot-attacher/privacy/';
+export const SHORTCUTS_HELP_URL = 'chrome://extensions/shortcuts';
 
 export type TargetId = 'chatgpt' | 'claude' | 'gemini' | 'doubao';
 
@@ -50,9 +54,11 @@ export const AUTO_MONITOR_INTERVAL_MS = 1500;
 export const USER_MESSAGES = {
   noClipboardImage: '未检测到剪贴板图片，请先截图后再试。',
   attachSuccess: '截图已附加，请自行输入问题并发送。',
+  attachUnconfirmed: '已执行附加操作，但未能确认结果。请先检查输入区；如果没有图片，再手动 Ctrl+V / Cmd+V。',
   attachFallback: '自动附加失败，已保留截图到剪贴板，请手动 Ctrl+V / Cmd+V。',
   attachFallbackNoWrite: '自动附加失败，请手动 Ctrl+V / Cmd+V。',
   targetLoadFailed: '目标 AI 页面加载失败，请打开页面后重试。',
+  serviceUnavailable: '插件后台暂不可用，请稍后重试。',
   autoMonitorEnabled: '自动粘贴模式已开启。',
   autoMonitorDisabled: '自动粘贴模式已关闭。'
 } as const;

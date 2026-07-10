@@ -8,17 +8,36 @@ import {
   type SupportedClipboardImageType
 } from '../clipboard/types';
 import { USER_MESSAGES } from '../shared/constants';
-import type { AutoClipboardImageDetectedMessage } from '../shared/messages';
+import type { AutoClipboardImageDetectedMessage, OffscreenClipboardWriteTimedOutMessage } from '../shared/messages';
+
+const CLIPBOARD_READ_DEADLINE_MS = 5000;
+const CLIPBOARD_WRITE_DEADLINE_MS = 10000;
+const MONITOR_DELIVERY_DEADLINE_MS = 60000;
+const PASTE_FALLBACK_DEADLINE_MS = 5000;
+const CLIPBOARD_WRITE_SUPPRESSION_MS = 120000;
 
 let monitorTimer: number | undefined;
 let lastMonitorFingerprint: string | undefined;
+let monitorBaselinePending = true;
 let lastSentFingerprint: string | undefined;
 let lastSentAt = 0;
+let pendingDelivery: { fingerprint: string; deliveryId: string } | undefined;
+let deliverySequence = 0;
+const suppressedWriteFingerprints = new Map<string, number>();
 let monitorPollInFlight = false;
+let monitorGeneration = 0;
+let clipboardWriteGeneration = 0;
+let clipboardWritesInFlight = 0;
 
 chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sender, sendResponse) => {
   if (message.type === 'OFFSCREEN_READ_CLIPBOARD_IMAGE') {
-    readClipboardImageInDocument().then(sendResponse);
+    readClipboardImageInDocument().then(sendResponse, () => {
+      sendResponse({
+        ok: false,
+        error: 'CLIPBOARD_READ_FAILED',
+        message: '读取剪贴板失败，请重新截图后再试。'
+      });
+    });
     return true;
   }
 
@@ -37,6 +56,12 @@ chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sende
     return true;
   }
 
+  if (message.type === 'OFFSCREEN_REGISTER_CLIPBOARD_WRITE_FINGERPRINT') {
+    registerSuppressedWriteFingerprint(message.fingerprint);
+    sendResponse({ ok: true });
+    return false;
+  }
+
   return false;
 });
 
@@ -46,7 +71,7 @@ async function readClipboardImageInDocument(
   let asyncClipboardError: ClipboardReadResult | undefined;
 
   try {
-    const items = await navigator.clipboard.read();
+    const items = await withTimeout(navigator.clipboard.read(), CLIPBOARD_READ_DEADLINE_MS);
     let foundUnsupportedImage = false;
 
     for (const item of items) {
@@ -58,7 +83,8 @@ async function readClipboardImageInDocument(
         continue;
       }
 
-      return blobToClipboardPayload(await item.getType(supportedType), supportedType);
+      const blob = await withTimeout(item.getType(supportedType), CLIPBOARD_READ_DEADLINE_MS);
+      return await withTimeout(blobToClipboardPayload(blob, supportedType), CLIPBOARD_READ_DEADLINE_MS);
     }
 
     asyncClipboardError = {
@@ -101,21 +127,78 @@ async function readClipboardImageInDocument(
 }
 
 async function writeClipboardImageInDocument(image: ClipboardImagePayload): Promise<ClipboardWriteResult> {
+  if (clipboardWritesInFlight > 0) {
+    return clipboardWriteFailure();
+  }
+
+  clipboardWriteGeneration += 1;
+  clipboardWritesInFlight += 1;
+  let finalized = false;
+  const finalizeWrite = (writeSucceeded: boolean, fingerprint?: string) => {
+    if (finalized) {
+      return;
+    }
+    finalized = true;
+    if (writeSucceeded) {
+      lastMonitorFingerprint = fingerprint;
+      monitorBaselinePending = fingerprint === undefined;
+      pendingDelivery = undefined;
+      if (fingerprint) {
+        registerSuppressedWriteFingerprint(fingerprint);
+      }
+    }
+    clipboardWritesInFlight = Math.max(0, clipboardWritesInFlight - 1);
+    clipboardWriteGeneration += 1;
+  };
+
+  let fingerprint: string | undefined;
+  try {
+    fingerprint = await withTimeout(createImageFingerprint(image), CLIPBOARD_READ_DEADLINE_MS);
+  } catch {
+    fingerprint = undefined;
+  }
+
+  let writePromise: Promise<void>;
   try {
     const blob = dataUrlToBlob(image.dataUrl, image.mimeType);
-    await navigator.clipboard.write([
+    writePromise = navigator.clipboard.write([
       new ClipboardItem({
         [blob.type || image.mimeType]: blob
       })
     ]);
-    return { ok: true };
   } catch {
-    return {
-      ok: false,
-      error: 'CLIPBOARD_WRITE_FAILED',
-      message: '写回剪贴板失败，请重新截图后手动粘贴。'
-    };
+    finalizeWrite(false);
+    return clipboardWriteFailure();
   }
+
+  try {
+    await withTimeout(writePromise, CLIPBOARD_WRITE_DEADLINE_MS);
+    finalizeWrite(true, fingerprint);
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof Error && error.message === 'OFFSCREEN_OPERATION_TIMEOUT') {
+      void writePromise.then(
+        () => finalizeWrite(true, fingerprint),
+        () => finalizeWrite(false)
+      );
+      const recoveryMessage: OffscreenClipboardWriteTimedOutMessage = {
+        type: 'OFFSCREEN_CLIPBOARD_WRITE_TIMED_OUT',
+        fingerprint
+      };
+      void chrome.runtime.sendMessage(recoveryMessage).catch(() => undefined);
+    } else {
+      finalizeWrite(false);
+    }
+    return clipboardWriteFailure();
+  }
+}
+
+function clipboardWriteFailure(): ClipboardWriteResult {
+  return {
+    ok: false,
+    error: 'CLIPBOARD_WRITE_FAILED',
+    message: '写回剪贴板失败，请重新截图后手动粘贴。'
+  };
 }
 
 async function startAutoMonitor(intervalMs: number): Promise<OffscreenMonitorResult> {
@@ -123,9 +206,17 @@ async function startAutoMonitor(intervalMs: number): Promise<OffscreenMonitorRes
     return { ok: true, active: true };
   }
 
+  const generation = ++monitorGeneration;
+  monitorBaselinePending = true;
+  const writeGeneration = clipboardWriteGeneration;
   try {
-    const initialResult = await readClipboardImageForAutoMonitor();
-    if (!initialResult.ok && ['NO_PERMISSION', 'CLIPBOARD_READ_FAILED'].includes(initialResult.error)) {
+    const initialResult = await withTimeout(readClipboardImageForAutoMonitor(), CLIPBOARD_READ_DEADLINE_MS);
+    if (generation !== monitorGeneration) {
+      return { ok: true, active: false };
+    }
+
+    const writeStateIsStable = writeGeneration === clipboardWriteGeneration && clipboardWritesInFlight === 0;
+    if (writeStateIsStable && !initialResult.ok && initialResult.error === 'NO_PERMISSION') {
       return {
         ok: false,
         active: false,
@@ -133,19 +224,47 @@ async function startAutoMonitor(intervalMs: number): Promise<OffscreenMonitorRes
       };
     }
 
-    lastMonitorFingerprint = initialResult.ok ? await createImageFingerprint(initialResult.image) : undefined;
+    const baselineReadIsReliable =
+      initialResult.ok ||
+      initialResult.error === 'NO_IMAGE_IN_CLIPBOARD' ||
+      initialResult.error === 'UNSUPPORTED_IMAGE_TYPE';
+    if (writeStateIsStable && baselineReadIsReliable) {
+      const fingerprint = initialResult.ok
+        ? await withTimeout(createImageFingerprint(initialResult.image), CLIPBOARD_READ_DEADLINE_MS)
+        : undefined;
+      if (
+        generation === monitorGeneration &&
+        writeGeneration === clipboardWriteGeneration &&
+        clipboardWritesInFlight === 0
+      ) {
+        lastMonitorFingerprint = fingerprint;
+        monitorBaselinePending = false;
+        pendingDelivery = undefined;
+      }
+    }
   } catch {
-    lastMonitorFingerprint = undefined;
+    if (
+      generation === monitorGeneration &&
+      writeGeneration === clipboardWriteGeneration &&
+      clipboardWritesInFlight === 0
+    ) {
+      lastMonitorFingerprint = undefined;
+    }
+  }
+
+  if (generation !== monitorGeneration) {
+    return { ok: true, active: false };
   }
 
   monitorTimer = window.setInterval(() => {
-    void pollClipboardForNewImage();
+    void pollClipboardForNewImage(generation);
   }, intervalMs);
 
   return { ok: true, active: true };
 }
 
 async function stopAutoMonitor(): Promise<OffscreenMonitorResult> {
+  monitorGeneration += 1;
   if (monitorTimer !== undefined) {
     window.clearInterval(monitorTimer);
     monitorTimer = undefined;
@@ -153,8 +272,10 @@ async function stopAutoMonitor(): Promise<OffscreenMonitorResult> {
 
   monitorPollInFlight = false;
   lastMonitorFingerprint = undefined;
+  monitorBaselinePending = true;
   lastSentFingerprint = undefined;
   lastSentAt = 0;
+  pendingDelivery = undefined;
   return { ok: true, active: false };
 }
 
@@ -162,41 +283,131 @@ async function readClipboardImageForAutoMonitor(): Promise<ClipboardReadResult> 
   return readClipboardImageInDocument({ usePasteFallback: true });
 }
 
-async function pollClipboardForNewImage(): Promise<void> {
+async function pollClipboardForNewImage(generation: number): Promise<void> {
   if (monitorPollInFlight) {
     return;
   }
 
   monitorPollInFlight = true;
+  const writeGeneration = clipboardWriteGeneration;
   try {
-    const result = await readClipboardImageForAutoMonitor();
+    const result = await withTimeout(readClipboardImageForAutoMonitor(), CLIPBOARD_READ_DEADLINE_MS);
+    if (
+      generation !== monitorGeneration ||
+      monitorTimer === undefined ||
+      writeGeneration !== clipboardWriteGeneration ||
+      clipboardWritesInFlight > 0
+    ) {
+      return;
+    }
+
     if (!result.ok) {
       if (result.error === 'NO_IMAGE_IN_CLIPBOARD' || result.error === 'UNSUPPORTED_IMAGE_TYPE') {
         lastMonitorFingerprint = undefined;
+        monitorBaselinePending = false;
+        pendingDelivery = undefined;
       }
       return;
     }
 
-    const fingerprint = await createImageFingerprint(result.image);
+    const fingerprint = await withTimeout(createImageFingerprint(result.image), CLIPBOARD_READ_DEADLINE_MS);
+    if (
+      generation !== monitorGeneration ||
+      monitorTimer === undefined ||
+      writeGeneration !== clipboardWriteGeneration ||
+      clipboardWritesInFlight > 0
+    ) {
+      return;
+    }
+
+    if (monitorBaselinePending) {
+      lastMonitorFingerprint = fingerprint;
+      monitorBaselinePending = false;
+      pendingDelivery = undefined;
+      return;
+    }
+
+    if (consumeSuppressedWriteFingerprint(fingerprint)) {
+      lastMonitorFingerprint = fingerprint;
+      pendingDelivery = undefined;
+      return;
+    }
+
     if (fingerprint === lastMonitorFingerprint) {
       return;
     }
 
-    lastMonitorFingerprint = fingerprint;
     if (isRecentlySent(fingerprint)) {
+      lastMonitorFingerprint = fingerprint;
+      pendingDelivery = undefined;
       return;
     }
 
-    lastSentFingerprint = fingerprint;
-    lastSentAt = Date.now();
+    if (!pendingDelivery || pendingDelivery.fingerprint !== fingerprint) {
+      pendingDelivery = {
+        fingerprint,
+        deliveryId: createDeliveryId(fingerprint)
+      };
+    }
+
     const message: AutoClipboardImageDetectedMessage = {
       type: 'AUTO_CLIPBOARD_IMAGE_DETECTED',
       image: result.image,
-      fingerprint
+      fingerprint,
+      deliveryId: pendingDelivery.deliveryId
     };
-    void chrome.runtime.sendMessage(message).catch(() => undefined);
+    try {
+      const response = (await withTimeout(chrome.runtime.sendMessage(message), MONITOR_DELIVERY_DEADLINE_MS)) as
+        | { ok?: boolean }
+        | undefined;
+      if (!response?.ok) {
+        throw new Error('AUTO_CLIPBOARD_IMAGE_DELIVERY_REJECTED');
+      }
+      if (generation === monitorGeneration) {
+        lastMonitorFingerprint = fingerprint;
+        lastSentFingerprint = fingerprint;
+        lastSentAt = Date.now();
+        pendingDelivery = undefined;
+      }
+    } catch {
+      if (generation === monitorGeneration) {
+        lastMonitorFingerprint = undefined;
+      }
+    }
+  } catch {
+    // A transient clipboard read or fingerprint failure must not stop later monitor polls.
   } finally {
-    monitorPollInFlight = false;
+    if (generation === monitorGeneration) {
+      monitorPollInFlight = false;
+    }
+  }
+}
+
+function createDeliveryId(fingerprint: string): string {
+  deliverySequence += 1;
+  return `${Date.now().toString(36)}-${deliverySequence.toString(36)}-${fingerprint.slice(0, 12)}`;
+}
+
+function registerSuppressedWriteFingerprint(fingerprint: string): void {
+  pruneSuppressedWriteFingerprints();
+  suppressedWriteFingerprints.set(fingerprint, Date.now() + CLIPBOARD_WRITE_SUPPRESSION_MS);
+}
+
+function consumeSuppressedWriteFingerprint(fingerprint: string): boolean {
+  pruneSuppressedWriteFingerprints();
+  if (!suppressedWriteFingerprints.has(fingerprint)) {
+    return false;
+  }
+  suppressedWriteFingerprints.delete(fingerprint);
+  return true;
+}
+
+function pruneSuppressedWriteFingerprints(): void {
+  const now = Date.now();
+  for (const [fingerprint, expiresAt] of suppressedWriteFingerprints) {
+    if (expiresAt <= now) {
+      suppressedWriteFingerprints.delete(fingerprint);
+    }
   }
 }
 
@@ -256,6 +467,7 @@ function readClipboardImageByPasteCommand(): Promise<ClipboardReadResult> {
     const target = document.createElement('div');
     let settled = false;
     let foundUnsupportedImage = false;
+    let timer: number | undefined;
 
     target.contentEditable = 'true';
     target.setAttribute('aria-hidden', 'true');
@@ -267,6 +479,10 @@ function readClipboardImageByPasteCommand(): Promise<ClipboardReadResult> {
     document.body.appendChild(target);
 
     const cleanup = () => {
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+        timer = undefined;
+      }
       target.removeEventListener('paste', onPaste);
       target.remove();
     };
@@ -280,51 +496,70 @@ function readClipboardImageByPasteCommand(): Promise<ClipboardReadResult> {
       resolve(result);
     };
 
-    const timer = window.setTimeout(() => {
+    timer = window.setTimeout(() => {
       done({
         ok: false,
         error: foundUnsupportedImage ? 'UNSUPPORTED_IMAGE_TYPE' : 'NO_IMAGE_IN_CLIPBOARD',
         message: foundUnsupportedImage ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。' : USER_MESSAGES.noClipboardImage
       });
-    }, 800);
+    }, PASTE_FALLBACK_DEADLINE_MS);
 
     async function onPaste(event: ClipboardEvent) {
       event.preventDefault();
-      window.clearTimeout(timer);
 
-      const data = event.clipboardData;
-      const files = Array.from(data?.files ?? []);
-      const supportedFile = files.find((file) =>
-        SUPPORTED_CLIPBOARD_IMAGE_TYPES.includes(file.type as SupportedClipboardImageType)
-      );
+      try {
+        const data = event.clipboardData;
+        const files = Array.from(data?.files ?? []);
+        const supportedFile = files.find((file) =>
+          SUPPORTED_CLIPBOARD_IMAGE_TYPES.includes(file.type as SupportedClipboardImageType)
+        );
 
-      if (supportedFile) {
-        done(await blobToClipboardPayload(supportedFile, supportedFile.type as SupportedClipboardImageType));
-        return;
-      }
-
-      const items = Array.from(data?.items ?? []);
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          foundUnsupportedImage = true;
-        }
-
-        if (!SUPPORTED_CLIPBOARD_IMAGE_TYPES.includes(item.type as SupportedClipboardImageType)) {
-          continue;
-        }
-
-        const file = item.getAsFile();
-        if (file) {
-          done(await blobToClipboardPayload(file, item.type as SupportedClipboardImageType));
+        if (supportedFile) {
+          done(
+            await withTimeout(
+              blobToClipboardPayload(supportedFile, supportedFile.type as SupportedClipboardImageType),
+              PASTE_FALLBACK_DEADLINE_MS
+            )
+          );
           return;
         }
-      }
 
-      done({
-        ok: false,
-        error: foundUnsupportedImage ? 'UNSUPPORTED_IMAGE_TYPE' : 'NO_IMAGE_IN_CLIPBOARD',
-        message: foundUnsupportedImage ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。' : USER_MESSAGES.noClipboardImage
-      });
+        const items = Array.from(data?.items ?? []);
+        for (const item of items) {
+          if (item.type.startsWith('image/')) {
+            foundUnsupportedImage = true;
+          }
+
+          if (!SUPPORTED_CLIPBOARD_IMAGE_TYPES.includes(item.type as SupportedClipboardImageType)) {
+            continue;
+          }
+
+          const file = item.getAsFile();
+          if (file) {
+            done(
+              await withTimeout(
+                blobToClipboardPayload(file, item.type as SupportedClipboardImageType),
+                PASTE_FALLBACK_DEADLINE_MS
+              )
+            );
+            return;
+          }
+        }
+
+        done({
+          ok: false,
+          error: foundUnsupportedImage ? 'UNSUPPORTED_IMAGE_TYPE' : 'NO_IMAGE_IN_CLIPBOARD',
+          message: foundUnsupportedImage
+            ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。'
+            : USER_MESSAGES.noClipboardImage
+        });
+      } catch {
+        done({
+          ok: false,
+          error: 'CLIPBOARD_READ_FAILED',
+          message: '读取剪贴板失败，请重新截图后再试。'
+        });
+      }
     }
 
     target.addEventListener('paste', onPaste);
@@ -333,7 +568,6 @@ function readClipboardImageByPasteCommand(): Promise<ClipboardReadResult> {
     try {
       const didPaste = document.execCommand('paste');
       if (!didPaste) {
-        window.clearTimeout(timer);
         done({
           ok: false,
           error: 'NO_PERMISSION',
@@ -341,7 +575,6 @@ function readClipboardImageByPasteCommand(): Promise<ClipboardReadResult> {
         });
       }
     } catch {
-      window.clearTimeout(timer);
       done({
         ok: false,
         error: 'NO_PERMISSION',
@@ -369,4 +602,36 @@ function dataUrlToBlob(dataUrl: string, fallbackType: SupportedClipboardImageTyp
     bytes[index] = binary.charCodeAt(index);
   }
   return new Blob([bytes], { type: mimeType });
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const timeoutId = window.setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      reject(new Error('OFFSCREEN_OPERATION_TIMEOUT'));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error: unknown) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        window.clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
 }
