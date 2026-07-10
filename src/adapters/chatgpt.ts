@@ -86,6 +86,13 @@ export const chatgptAdapter: AiTargetAdapter = {
 function findActiveChatGptComposerScope(): { input: HTMLElement; root: HTMLElement } | undefined {
   const inputs = querySelectorCandidates<HTMLElement>(selectors.textInputs, { visibleOnly: true });
   for (const input of inputs) {
+    if (strongInputSelectors.some((selector) => input.matches(selector))) {
+      const unifiedComposer = input.closest('form[data-type="unified-composer"]');
+      if (unifiedComposer instanceof HTMLElement) {
+        return { input, root: unifiedComposer };
+      }
+    }
+
     const explicitRoot = findExplicitComposerRoot(input);
     if (explicitRoot) {
       return { input, root: explicitRoot };

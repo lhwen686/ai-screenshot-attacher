@@ -83,6 +83,27 @@ describe('adapter readiness and input targeting', () => {
     }
   );
 
+  it('observes a ChatGPT attachment rendered beside the nested editor inside the unified composer form', async () => {
+    vi.useFakeTimers();
+    installClipboardEventMocks();
+    document.body.innerHTML =
+      '<main><form data-type="unified-composer"><div id="attachments"></div><div class="group-data-[expanded-composer-mode-button]/composer"><div id="prompt-textarea" contenteditable="true"></div></div></form></main>';
+    const attachments = document.querySelector('#attachments')!;
+    const editor = document.querySelector('#prompt-textarea')!;
+    makeVisible(editor);
+    editor.addEventListener('paste', () => {
+      const attachmentControl = document.createElement('button');
+      attachmentControl.setAttribute('aria-label', '移除文件1：screenshot.png');
+      makeVisible(attachmentControl);
+      attachments.append(attachmentControl);
+    });
+
+    const pending = chatgptAdapter.attachImage(new File(['image'], 'screenshot.png', { type: 'image/png' }));
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toMatchObject({ ok: true, method: 'paste-event', outcome: 'confirmed' });
+  });
+
   it('does not treat an existing ChatGPT attachment control as a new attachment', async () => {
     vi.useFakeTimers();
     installClipboardEventMocks();

@@ -1,4 +1,11 @@
-import { AUTO_DEDUPE_STATE_KEY, AUTO_MONITOR_INTERVAL_MS, AI_TARGETS, USER_MESSAGES } from '../shared/constants';
+import {
+  AUTO_DEDUPE_STATE_KEY,
+  AUTO_MONITOR_BASELINE_MAX_AGE_MS,
+  AUTO_MONITOR_BASELINE_KEY,
+  AUTO_MONITOR_INTERVAL_MS,
+  AI_TARGETS,
+  USER_MESSAGES
+} from '../shared/constants';
 import type { ClipboardImagePayload, OffscreenMonitorResult } from '../clipboard/types';
 import type { AutoMonitorStatus } from '../shared/messages';
 import { getSettings, type AppSettings } from '../shared/settings';
@@ -23,6 +30,13 @@ interface AutoDedupeState {
   fingerprint: string;
   at: number;
 }
+
+interface StoredMonitorBaseline {
+  found: boolean;
+  fingerprint?: string;
+}
+
+type MonitorStartMode = 'auto' | 'force-resume' | 'fresh-baseline';
 
 type AutoOperationResult = Parameters<typeof recordOperationResult>[0];
 
@@ -54,6 +68,7 @@ let pendingAutoImage:
       waiters: AutoAttachWaiter[];
     }
   | undefined;
+let monitorStartMode: MonitorStartMode = 'auto';
 
 export function scheduleAutoMonitorRefresh(): void {
   if (monitorStartSuspended) {
@@ -89,6 +104,14 @@ export function suspendAutoMonitorRefresh(): void {
 
 export function resumeAutoMonitorRefresh(): void {
   monitorStartSuspended = false;
+}
+
+export function requestAutoMonitorResumeFromStoredState(): void {
+  monitorStartMode = 'force-resume';
+}
+
+export function requestAutoMonitorFreshBaseline(): void {
+  monitorStartMode = 'fresh-baseline';
 }
 
 export async function refreshAutoMonitor(): Promise<AutoMonitorStatus> {
@@ -409,6 +432,7 @@ async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
     }
   }
   if (!settings.autoAttachEnabled || targetCount === 0) {
+    monitorStartMode = 'auto';
     await stopOffscreenMonitorIfPresent();
     return setStatus({
       enabled: settings.autoAttachEnabled,
@@ -457,20 +481,80 @@ async function startOffscreenMonitor(lifecycleGeneration: number): Promise<Offsc
     if (monitorStartSuspended || lifecycleGeneration !== monitorLifecycleGeneration) {
       return { ok: false, active: false, message: 'auto monitor start was superseded' };
     }
+    const requestedStartMode = monitorStartMode;
+    let storedBaseline: StoredMonitorBaseline = { found: false };
+    if (requestedStartMode !== 'fresh-baseline') {
+      try {
+        storedBaseline = await getStoredAutoMonitorBaseline(requestedStartMode === 'force-resume');
+      } catch (error) {
+        logger.warn('auto monitor baseline lookup failed', { error });
+      }
+    }
+    const startMessage = {
+      type: 'OFFSCREEN_START_AUTO_MONITOR' as const,
+      intervalMs: AUTO_MONITOR_INTERVAL_MS,
+      ...(storedBaseline.found
+        ? {
+            resumeBaseline: {
+              ...(storedBaseline.fingerprint ? { fingerprint: storedBaseline.fingerprint } : {})
+            }
+          }
+        : {})
+    };
     const response = (await withTimeout(
-      chrome.runtime.sendMessage({
-        type: 'OFFSCREEN_START_AUTO_MONITOR',
-        intervalMs: AUTO_MONITOR_INTERVAL_MS
-      }),
+      chrome.runtime.sendMessage(startMessage),
       AUTO_LIFECYCLE_TIMEOUT_MS,
       'AUTO_MONITOR_START_TIMEOUT'
     )) as OffscreenMonitorResult | undefined;
+
+    if (response?.ok) {
+      monitorStartMode = 'auto';
+    }
 
     return response ?? { ok: false, active: false, message: 'offscreen monitor did not respond' };
   } catch (error) {
     logger.warn('auto monitor start failed', { error });
     return { ok: false, active: false, message: 'offscreen monitor start failed' };
   }
+}
+
+async function getStoredAutoMonitorBaseline(allowLegacy: boolean): Promise<StoredMonitorBaseline> {
+  const stored = await withTimeout(
+    chrome.storage.local.get([AUTO_MONITOR_BASELINE_KEY, AUTO_DEDUPE_STATE_KEY]),
+    AUTO_BEST_EFFORT_TIMEOUT_MS,
+    'AUTO_MONITOR_BASELINE_LOOKUP_TIMEOUT'
+  );
+  const baseline = stored[AUTO_MONITOR_BASELINE_KEY];
+  if (isFreshStoredMonitorBaseline(baseline)) {
+    return baseline.fingerprint === null ? { found: true } : { found: true, fingerprint: baseline.fingerprint };
+  }
+  if (allowLegacy) {
+    if (typeof baseline === 'string' && baseline) {
+      return { found: true, fingerprint: baseline };
+    }
+    if (baseline === null) {
+      return { found: true };
+    }
+  }
+
+  const dedupeState = stored[AUTO_DEDUPE_STATE_KEY] as { fingerprint?: unknown } | undefined;
+  return allowLegacy && typeof dedupeState?.fingerprint === 'string' && dedupeState.fingerprint
+    ? { found: true, fingerprint: dedupeState.fingerprint }
+    : { found: false };
+}
+
+function isFreshStoredMonitorBaseline(value: unknown): value is { fingerprint: string | null; observedAt: number } {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const baseline = value as { fingerprint?: unknown; observedAt?: unknown };
+  const validFingerprint =
+    baseline.fingerprint === null || (typeof baseline.fingerprint === 'string' && Boolean(baseline.fingerprint));
+  if (!validFingerprint || typeof baseline.observedAt !== 'number' || !Number.isFinite(baseline.observedAt)) {
+    return false;
+  }
+  const age = Date.now() - baseline.observedAt;
+  return age >= 0 && age <= AUTO_MONITOR_BASELINE_MAX_AGE_MS;
 }
 
 async function stopOffscreenMonitorIfPresent(): Promise<void> {
@@ -556,7 +640,7 @@ async function isDuplicateAutoImage(deliveryId: string): Promise<boolean> {
 function persistAutoDedupeState(state: AutoDedupeState | undefined, revision: number): Promise<void> {
   const persistence = state
     ? chrome.storage.local.set({ [AUTO_DEDUPE_STATE_KEY]: state })
-    : chrome.storage.local.remove(AUTO_DEDUPE_STATE_KEY);
+    : chrome.storage.local.remove([AUTO_DEDUPE_STATE_KEY, AUTO_MONITOR_BASELINE_KEY]);
   const reconcileLatestState = () => {
     if (revision === autoDedupePersistenceRevision) {
       return;

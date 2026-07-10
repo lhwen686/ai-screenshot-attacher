@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
   loggerError: vi.fn(),
   loggerWarn: vi.fn(),
   refreshAutoMonitor: vi.fn(),
+  requestAutoMonitorFreshBaseline: vi.fn(),
+  requestAutoMonitorResumeFromStoredState: vi.fn(),
   resumeAutoMonitorRefresh: vi.fn(),
   ensureOffscreenDocument: vi.fn(),
   resetOffscreenDocument: vi.fn(),
@@ -45,6 +47,8 @@ vi.mock('../../src/background/autoMonitor', () => ({
   getAutoMonitorStatus: mocks.getAutoMonitorStatus,
   handleAutoClipboardImage: mocks.handleAutoClipboardImage,
   refreshAutoMonitor: mocks.refreshAutoMonitor,
+  requestAutoMonitorFreshBaseline: mocks.requestAutoMonitorFreshBaseline,
+  requestAutoMonitorResumeFromStoredState: mocks.requestAutoMonitorResumeFromStoredState,
   resumeAutoMonitorRefresh: mocks.resumeAutoMonitorRefresh,
   scheduleAutoMonitorRefresh: mocks.scheduleAutoMonitorRefresh,
   suspendAutoMonitorRefresh: mocks.suspendAutoMonitorRefresh
@@ -693,6 +697,23 @@ describe('service worker integration routing', () => {
     );
   });
 
+  it('resumes the clipboard baseline for updates even when an unpacked reload omits previousVersion', async () => {
+    await loadServiceWorker();
+    const installedListener = vi.mocked(chrome.runtime.onInstalled.addListener).mock.calls[0][0];
+
+    installedListener({ reason: 'install' });
+    expect(mocks.requestAutoMonitorResumeFromStoredState).not.toHaveBeenCalled();
+
+    installedListener({ reason: 'update' });
+    expect(mocks.requestAutoMonitorResumeFromStoredState).toHaveBeenCalledOnce();
+  });
+
+  it('schedules monitoring as soon as the service worker loads', async () => {
+    await loadServiceWorker();
+
+    expect(mocks.scheduleAutoMonitorRefresh).toHaveBeenCalledOnce();
+  });
+
   it('catches monitor refresh rejection during installation', async () => {
     const error = new Error('monitor unavailable');
     mocks.refreshAutoMonitor.mockRejectedValue(error);
@@ -718,7 +739,9 @@ describe('service worker integration routing', () => {
     const windowFocusListener = vi.mocked(chrome.windows.onFocusChanged.addListener).mock.calls[0][0];
     const storageListener = vi.mocked(chrome.storage.onChanged.addListener).mock.calls[0][0];
 
+    mocks.scheduleAutoMonitorRefresh.mockClear();
     startupListener();
+    expect(mocks.requestAutoMonitorFreshBaseline).toHaveBeenCalledOnce();
     expect(mocks.scheduleAutoMonitorRefresh).toHaveBeenCalledTimes(1);
 
     tabCreatedListener({} as chrome.tabs.Tab);
@@ -750,5 +773,6 @@ async function loadServiceWorker(): Promise<void> {
 
 async function loadRuntimeMessageListener(): Promise<RuntimeMessageListener> {
   await loadServiceWorker();
+  mocks.scheduleAutoMonitorRefresh.mockClear();
   return vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0][0] as RuntimeMessageListener;
 }

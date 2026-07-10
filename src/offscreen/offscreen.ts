@@ -7,7 +7,7 @@ import {
   type OffscreenClipboardMessage,
   type SupportedClipboardImageType
 } from '../clipboard/types';
-import { USER_MESSAGES } from '../shared/constants';
+import { AUTO_MONITOR_BASELINE_HEARTBEAT_MS, AUTO_MONITOR_BASELINE_KEY, USER_MESSAGES } from '../shared/constants';
 import type { AutoClipboardImageDetectedMessage, OffscreenClipboardWriteTimedOutMessage } from '../shared/messages';
 
 const CLIPBOARD_READ_DEADLINE_MS = 5000;
@@ -28,6 +28,9 @@ let monitorPollInFlight = false;
 let monitorGeneration = 0;
 let clipboardWriteGeneration = 0;
 let clipboardWritesInFlight = 0;
+let persistedMonitorBaselineKnown = false;
+let persistedMonitorBaselineFingerprint: string | undefined;
+let persistedMonitorBaselineAt = 0;
 
 chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sender, sendResponse) => {
   if (message.type === 'OFFSCREEN_READ_CLIPBOARD_IMAGE') {
@@ -47,7 +50,7 @@ chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sende
   }
 
   if (message.type === 'OFFSCREEN_START_AUTO_MONITOR') {
-    startAutoMonitor(message.intervalMs ?? 1500).then(sendResponse);
+    startAutoMonitor(message.intervalMs ?? 1500, message.resumeBaseline).then(sendResponse);
     return true;
   }
 
@@ -143,6 +146,7 @@ async function writeClipboardImageInDocument(image: ClipboardImagePayload): Prom
       lastMonitorFingerprint = fingerprint;
       monitorBaselinePending = fingerprint === undefined;
       pendingDelivery = undefined;
+      persistMonitorBaselineFingerprint(fingerprint);
       if (fingerprint) {
         registerSuppressedWriteFingerprint(fingerprint);
       }
@@ -201,7 +205,10 @@ function clipboardWriteFailure(): ClipboardWriteResult {
   };
 }
 
-async function startAutoMonitor(intervalMs: number): Promise<OffscreenMonitorResult> {
+async function startAutoMonitor(
+  intervalMs: number,
+  resumeBaseline?: { fingerprint?: string }
+): Promise<OffscreenMonitorResult> {
   if (monitorTimer !== undefined) {
     return { ok: true, active: true };
   }
@@ -209,46 +216,56 @@ async function startAutoMonitor(intervalMs: number): Promise<OffscreenMonitorRes
   const generation = ++monitorGeneration;
   monitorBaselinePending = true;
   const writeGeneration = clipboardWriteGeneration;
-  try {
-    const initialResult = await withTimeout(readClipboardImageForAutoMonitor(), CLIPBOARD_READ_DEADLINE_MS);
-    if (generation !== monitorGeneration) {
-      return { ok: true, active: false };
-    }
+  if (resumeBaseline !== undefined) {
+    lastMonitorFingerprint = resumeBaseline.fingerprint;
+    monitorBaselinePending = false;
+    pendingDelivery = undefined;
+    persistedMonitorBaselineKnown = true;
+    persistedMonitorBaselineFingerprint = resumeBaseline.fingerprint;
+    persistedMonitorBaselineAt = 0;
+  } else {
+    try {
+      const initialResult = await withTimeout(readClipboardImageForAutoMonitor(), CLIPBOARD_READ_DEADLINE_MS);
+      if (generation !== monitorGeneration) {
+        return { ok: true, active: false };
+      }
 
-    const writeStateIsStable = writeGeneration === clipboardWriteGeneration && clipboardWritesInFlight === 0;
-    if (writeStateIsStable && !initialResult.ok && initialResult.error === 'NO_PERMISSION') {
-      return {
-        ok: false,
-        active: false,
-        message: initialResult.message
-      };
-    }
+      const writeStateIsStable = writeGeneration === clipboardWriteGeneration && clipboardWritesInFlight === 0;
+      if (writeStateIsStable && !initialResult.ok && initialResult.error === 'NO_PERMISSION') {
+        return {
+          ok: false,
+          active: false,
+          message: initialResult.message
+        };
+      }
 
-    const baselineReadIsReliable =
-      initialResult.ok ||
-      initialResult.error === 'NO_IMAGE_IN_CLIPBOARD' ||
-      initialResult.error === 'UNSUPPORTED_IMAGE_TYPE';
-    if (writeStateIsStable && baselineReadIsReliable) {
-      const fingerprint = initialResult.ok
-        ? await withTimeout(createImageFingerprint(initialResult.image), CLIPBOARD_READ_DEADLINE_MS)
-        : undefined;
+      const baselineReadIsReliable =
+        initialResult.ok ||
+        initialResult.error === 'NO_IMAGE_IN_CLIPBOARD' ||
+        initialResult.error === 'UNSUPPORTED_IMAGE_TYPE';
+      if (writeStateIsStable && baselineReadIsReliable) {
+        const fingerprint = initialResult.ok
+          ? await withTimeout(createImageFingerprint(initialResult.image), CLIPBOARD_READ_DEADLINE_MS)
+          : undefined;
+        if (
+          generation === monitorGeneration &&
+          writeGeneration === clipboardWriteGeneration &&
+          clipboardWritesInFlight === 0
+        ) {
+          lastMonitorFingerprint = fingerprint;
+          monitorBaselinePending = false;
+          pendingDelivery = undefined;
+          persistMonitorBaselineFingerprint(fingerprint);
+        }
+      }
+    } catch {
       if (
         generation === monitorGeneration &&
         writeGeneration === clipboardWriteGeneration &&
         clipboardWritesInFlight === 0
       ) {
-        lastMonitorFingerprint = fingerprint;
-        monitorBaselinePending = false;
-        pendingDelivery = undefined;
+        lastMonitorFingerprint = undefined;
       }
-    }
-  } catch {
-    if (
-      generation === monitorGeneration &&
-      writeGeneration === clipboardWriteGeneration &&
-      clipboardWritesInFlight === 0
-    ) {
-      lastMonitorFingerprint = undefined;
     }
   }
 
@@ -259,6 +276,9 @@ async function startAutoMonitor(intervalMs: number): Promise<OffscreenMonitorRes
   monitorTimer = window.setInterval(() => {
     void pollClipboardForNewImage(generation);
   }, intervalMs);
+  if (resumeBaseline !== undefined) {
+    void pollClipboardForNewImage(generation);
+  }
 
   return { ok: true, active: true };
 }
@@ -276,6 +296,9 @@ async function stopAutoMonitor(): Promise<OffscreenMonitorResult> {
   lastSentFingerprint = undefined;
   lastSentAt = 0;
   pendingDelivery = undefined;
+  persistedMonitorBaselineKnown = false;
+  persistedMonitorBaselineFingerprint = undefined;
+  persistedMonitorBaselineAt = 0;
   return { ok: true, active: false };
 }
 
@@ -306,6 +329,7 @@ async function pollClipboardForNewImage(generation: number): Promise<void> {
         lastMonitorFingerprint = undefined;
         monitorBaselinePending = false;
         pendingDelivery = undefined;
+        persistMonitorBaselineFingerprint(undefined);
       }
       return;
     }
@@ -324,22 +348,26 @@ async function pollClipboardForNewImage(generation: number): Promise<void> {
       lastMonitorFingerprint = fingerprint;
       monitorBaselinePending = false;
       pendingDelivery = undefined;
+      persistMonitorBaselineFingerprint(fingerprint);
       return;
     }
 
     if (consumeSuppressedWriteFingerprint(fingerprint)) {
       lastMonitorFingerprint = fingerprint;
       pendingDelivery = undefined;
+      persistMonitorBaselineFingerprint(fingerprint);
       return;
     }
 
     if (fingerprint === lastMonitorFingerprint) {
+      persistMonitorBaselineFingerprint(fingerprint);
       return;
     }
 
     if (isRecentlySent(fingerprint)) {
       lastMonitorFingerprint = fingerprint;
       pendingDelivery = undefined;
+      persistMonitorBaselineFingerprint(fingerprint);
       return;
     }
 
@@ -368,6 +396,7 @@ async function pollClipboardForNewImage(generation: number): Promise<void> {
         lastSentFingerprint = fingerprint;
         lastSentAt = Date.now();
         pendingDelivery = undefined;
+        persistMonitorBaselineFingerprint(fingerprint);
       }
     } catch {
       if (generation === monitorGeneration) {
@@ -413,6 +442,27 @@ function pruneSuppressedWriteFingerprints(): void {
 
 function isRecentlySent(fingerprint: string): boolean {
   return fingerprint === lastSentFingerprint && Date.now() - lastSentAt < 10000;
+}
+
+function persistMonitorBaselineFingerprint(fingerprint: string | undefined): void {
+  const observedAt = Date.now();
+  const age = observedAt - persistedMonitorBaselineAt;
+  if (
+    persistedMonitorBaselineKnown &&
+    persistedMonitorBaselineFingerprint === fingerprint &&
+    age >= 0 &&
+    age < AUTO_MONITOR_BASELINE_HEARTBEAT_MS
+  ) {
+    return;
+  }
+
+  persistedMonitorBaselineKnown = true;
+  persistedMonitorBaselineFingerprint = fingerprint;
+  persistedMonitorBaselineAt = observedAt;
+  const persistence = chrome.storage.local.set({
+    [AUTO_MONITOR_BASELINE_KEY]: { fingerprint: fingerprint ?? null, observedAt }
+  });
+  void persistence.catch(() => undefined);
 }
 
 async function createImageFingerprint(image: ClipboardImagePayload): Promise<string> {
