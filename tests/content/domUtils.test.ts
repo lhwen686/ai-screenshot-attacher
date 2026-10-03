@@ -6,46 +6,10 @@ import {
   querySelectorCandidates,
   snapshotAttachmentCount,
   tryAttachViaPaste,
-  tryPasteClipboardViaCommand
+  tryPasteClipboardViaCommand,
+  waitForCondition
 } from '../../src/content/domUtils';
-
-function makeVisible(element: Element) {
-  element.getBoundingClientRect = () =>
-    ({
-      bottom: 10,
-      height: 10,
-      left: 0,
-      right: 10,
-      top: 0,
-      width: 10,
-      x: 0,
-      y: 0,
-      toJSON: () => ({})
-    }) as DOMRect;
-}
-
-function installClipboardEventMocks() {
-  class TestDataTransfer {
-    files: File[] = [];
-    items = {
-      add: (file: File) => {
-        this.files.push(file);
-      }
-    };
-  }
-
-  class TestClipboardEvent extends Event {
-    clipboardData: TestDataTransfer;
-
-    constructor(type: string, init: EventInit & { clipboardData: TestDataTransfer }) {
-      super(type, init);
-      this.clipboardData = init.clipboardData;
-    }
-  }
-
-  vi.stubGlobal('DataTransfer', TestDataTransfer);
-  vi.stubGlobal('ClipboardEvent', TestClipboardEvent);
-}
+import { makeVisible, installClipboardEventMocks } from '../helpers/dom';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -308,5 +272,52 @@ describe('dom utilities', () => {
     await vi.runAllTimersAsync();
 
     await expect(pending).resolves.toMatchObject({ ok: false, outcome: 'unknown' });
+  });
+});
+
+describe('waitForCondition', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('resolves on the first DOM mutation without waiting for the backstop poll', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '<section id="root"></section>';
+    const root = document.querySelector('#root')!;
+    const isDone = vi.fn(() => root.childElementCount > 0);
+
+    const pending = waitForCondition(root, isDone, 5000);
+    root.append(document.createElement('img'));
+
+    await expect(pending).resolves.toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('uses the backstop poll for changes that produce no DOM mutation', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '<section id="root"></section>';
+    let laidOut = false;
+
+    const pending = waitForCondition(document.querySelector('#root')!, () => laidOut, 5000);
+    laidOut = true;
+    await vi.advanceTimersByTimeAsync(250);
+
+    await expect(pending).resolves.toBe(true);
+  });
+
+  it('resolves false at the deadline and stops observing', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '<section id="root"></section>';
+    const root = document.querySelector('#root')!;
+    const isDone = vi.fn(() => false);
+
+    const pending = waitForCondition(root, isDone, 1000);
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(pending).resolves.toBe(false);
+
+    const callsAtDeadline = isDone.mock.calls.length;
+    root.append(document.createElement('img'));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(isDone).toHaveBeenCalledTimes(callsAtDeadline);
   });
 });

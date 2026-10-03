@@ -10,12 +10,11 @@ import type { ClipboardImagePayload, OffscreenMonitorResult } from '../clipboard
 import type { AutoMonitorStatus } from '../shared/messages';
 import { getSettings, type AppSettings } from '../shared/settings';
 import { ensureOffscreenDocument, hasOffscreenDocument, resetOffscreenDocument } from '../clipboard/offscreenClient';
-import { writeClipboardImage } from '../clipboard/writeClipboardImage';
-import { runWithClipboardOperationLock } from '../clipboard/clipboardOperationLock';
 import { logger } from '../shared/logger';
 import { withTimeout } from '../shared/withTimeout';
 import { countOpenTargetTabs, executeAttachRuntime, getBestOpenTargetTabForAuto, showToastOnPage } from './tabManager';
 import { recordOperationResult } from './commandHandler';
+import { prepareFailureFeedback } from './failureFeedback';
 
 const AUTO_BEST_EFFORT_TIMEOUT_MS = 5000;
 const AUTO_LIFECYCLE_TIMEOUT_MS = 5000;
@@ -274,19 +273,7 @@ async function attachAutoClipboardImage(
   }
 
   const mutationMayHaveOccurred = attachResult.outcome === 'unknown';
-  const fallbackMessage = mutationMayHaveOccurred
-    ? USER_MESSAGES.attachUnconfirmed
-    : settings.writeBackOnFailure
-      ? USER_MESSAGES.attachFallback
-      : USER_MESSAGES.attachFallbackNoWrite;
-  let finalMessage: string = fallbackMessage;
-
-  if (settings.writeBackOnFailure && !mutationMayHaveOccurred) {
-    const writeResult = await runWithClipboardOperationLock(() => writeClipboardImage(image));
-    if (!writeResult.ok) {
-      finalMessage = `${fallbackMessage}（写回剪贴板失败，但原剪贴板通常仍保留截图。）`;
-    }
-  }
+  const finalMessage = await prepareFailureFeedback(image, settings, mutationMayHaveOccurred);
 
   if (settings.showPageToast) {
     try {

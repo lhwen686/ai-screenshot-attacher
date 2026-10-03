@@ -4,7 +4,7 @@ import {
   GENERIC_FILE_INPUT_SELECTORS,
   acceptsImage,
   countPatternMatches,
-  findExplicitComposerRoot,
+  findComposerScope,
   focusFirstInput,
   getObservationText,
   isVisible,
@@ -14,7 +14,8 @@ import {
   tryAttachViaDrop,
   tryAttachViaPasteRelaxed,
   tryPasteClipboardViaCommand,
-  waitForAnyElement
+  waitForAnyElement,
+  waitForCondition
 } from '../content/domUtils';
 
 const uploadTextPatterns = [/uploading/i, /processing/i, /attached/i, /上传中/, /正在上传/, /处理中/, /已附加/];
@@ -170,7 +171,9 @@ export const geminiAdapter: AiTargetAdapter = {
       }
     }
 
-    const dropResult = await tryAttachViaDrop(file, selectors.dropTargets, selectors.attachmentPreviews, composerRoot);
+    const dropResult = await tryAttachViaDrop(file, selectors.dropTargets, selectors.attachmentPreviews, {
+      scopeRoot: composerRoot
+    });
     return dropResult.ok || dropResult.outcome === 'unknown'
       ? dropResult
       : {
@@ -279,29 +282,30 @@ async function waitForGeminiUploadOutcome(
   file: File,
   observationRoot: ParentNode
 ): Promise<AttachResult> {
-  const startedAt = Date.now();
+  // Compare match counts rather than slicing by the previous text length, so edits elsewhere in the composer
+  // cannot shift old status text into the "new" range.
+  let invalid = false;
+  const settled = await waitForCondition(
+    observationRoot,
+    () => {
+      const current = snapshotGeminiUploadState(file, observationRoot);
+      invalid = current.invalidTextCount > before.invalidTextCount;
+      return (
+        invalid ||
+        current.previewCount > before.previewCount ||
+        current.uploadTextCounts.some((count, index) => count > (before.uploadTextCounts[index] ?? 0)) ||
+        (!before.hadFileName && current.hadFileName)
+      );
+    },
+    2500
+  );
 
-  while (Date.now() - startedAt < 2500) {
-    // Compare match counts rather than slicing by the previous text length, so edits elsewhere in the composer
-    // cannot shift old status text into the "new" range.
-    const current = snapshotGeminiUploadState(file, observationRoot);
-
-    if (current.invalidTextCount > before.invalidTextCount) {
-      return { ok: false, method: 'file-input', outcome: 'unknown', error: 'GEMINI_FILE_INPUT_INVALID' };
-    }
-
-    if (
-      current.previewCount > before.previewCount ||
-      current.uploadTextCounts.some((count, index) => count > (before.uploadTextCounts[index] ?? 0)) ||
-      (!before.hadFileName && current.hadFileName)
-    ) {
-      return { ok: true, method: 'file-input', outcome: 'confirmed' };
-    }
-
-    await sleep(100);
+  if (invalid) {
+    return { ok: false, method: 'file-input', outcome: 'unknown', error: 'GEMINI_FILE_INPUT_INVALID' };
   }
-
-  return { ok: false, method: 'file-input', outcome: 'unknown', error: 'FILE_INPUT_ATTACH_UNCONFIRMED' };
+  return settled
+    ? { ok: true, method: 'file-input', outcome: 'confirmed' }
+    : { ok: false, method: 'file-input', outcome: 'unknown', error: 'FILE_INPUT_ATTACH_UNCONFIRMED' };
 }
 
 function openGeminiAttachmentEntryPoint(composerRoots: HTMLElement[]): void {
@@ -368,20 +372,7 @@ function visibleActionCandidates(roots: HTMLElement[]): HTMLElement[] {
 }
 
 function findActiveGeminiComposerRoot(): HTMLElement | undefined {
-  const inputs = querySelectorCandidates<HTMLElement>(selectors.textInputs, { visibleOnly: true });
-  for (const input of inputs) {
-    const explicitRoot = findExplicitComposerRoot(input);
-    if (explicitRoot) {
-      return explicitRoot;
-    }
-
-    if (strongInputSelectors.some((selector) => input.matches(selector))) {
-      const form = input.closest('form');
-      return form instanceof HTMLElement ? form : input;
-    }
-  }
-
-  return undefined;
+  return findComposerScope(selectors.textInputs, strongInputSelectors)?.root;
 }
 
 function findVisibleGeminiMenuRoots(): HTMLElement[] {

@@ -3,8 +3,10 @@ import type { AppSettings } from '../shared/settings';
 import type { AttachResult } from '../adapters/types';
 import type { AttachRuntimePayload } from '../shared/messages';
 import { logger } from '../shared/logger';
+import { createSerialQueue } from '../shared/serialQueue';
 import { withTimeout } from '../shared/withTimeout';
 import { writeClipboardImage } from '../clipboard/writeClipboardImage';
+import { showToast, type ToastVariant } from '../content/toast';
 import {
   runWithClipboardOperationLock,
   type DeferClipboardOperationRelease
@@ -25,7 +27,7 @@ const uncertainTabNavigations = new Map<number, Promise<void>>();
 const uncertainTabMutations = new Map<number, Promise<void>>();
 const attachRuntimeQueues = new Map<number, Promise<void>>();
 const pendingAttachOperations = new Map<number, Map<string, Promise<AttachResult>>>();
-let activeTabReuseAcquisitionTail: Promise<void> = Promise.resolve();
+const runWithActiveTabReuseAcquisition = createSerialQueue();
 type ScriptExecutionWorld = 'ISOLATED' | 'MAIN';
 
 interface TargetTabCandidate {
@@ -111,15 +113,6 @@ async function getOrCreateTargetTabUnlocked(targetId: TargetId, settings: AppSet
   }
   reserveTargetTabForAttachment(created, targetId, settings);
   return created;
-}
-
-function runWithActiveTabReuseAcquisition<T>(operation: () => Promise<T>): Promise<T> {
-  const result = activeTabReuseAcquisitionTail.then(operation);
-  activeTabReuseAcquisitionTail = result.then(
-    () => undefined,
-    () => undefined
-  );
-  return result;
 }
 
 function reserveTargetTabForAttachment(tab: chrome.tabs.Tab, targetId: TargetId, settings: AppSettings): void {
@@ -715,56 +708,19 @@ async function injectAttachRuntimeWithRetry(
   return false;
 }
 
-export async function showToastOnPage(
-  tabId: number,
-  message: string,
-  variant: 'success' | 'warning' | 'error' | 'info'
-): Promise<void> {
+export async function showToastOnPage(tabId: number, message: string, variant: ToastVariant): Promise<void> {
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
       args: [message, variant],
-      func: (toastMessage: string, toastVariant: 'success' | 'warning' | 'error' | 'info') => {
-        const id = 'ai-screenshot-attacher-toast';
-        document.getElementById(id)?.remove();
-        const toast = document.createElement('div');
-        toast.id = id;
-        toast.textContent = toastMessage;
-        toast.setAttribute('role', 'status');
-        toast.style.position = 'fixed';
-        toast.style.top = '20px';
-        toast.style.right = '20px';
-        toast.style.zIndex = '2147483647';
-        toast.style.maxWidth = '360px';
-        toast.style.padding = '12px 14px';
-        toast.style.borderRadius = '8px';
-        toast.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-        toast.style.fontSize = '14px';
-        toast.style.lineHeight = '1.45';
-        toast.style.boxShadow = '0 16px 38px rgba(15, 23, 42, 0.18)';
-        toast.style.color = '#0f172a';
-        toast.style.border = '1px solid rgba(15, 23, 42, 0.12)';
-        toast.style.background =
-          toastVariant === 'success'
-            ? '#ecfdf5'
-            : toastVariant === 'warning'
-              ? '#fffbeb'
-              : toastVariant === 'error'
-                ? '#fef2f2'
-                : '#f8fafc';
-        document.documentElement.appendChild(toast);
-        window.setTimeout(() => toast.remove(), toastVariant === 'error' ? 7000 : 4500);
-      }
+      func: showToast
     });
   } catch (error) {
     logger.warn('page toast failed', { error });
   }
 }
 
-export async function showToastOnActivePage(
-  message: string,
-  variant: 'success' | 'warning' | 'error' | 'info'
-): Promise<void> {
+export async function showToastOnActivePage(message: string, variant: ToastVariant): Promise<void> {
   const [tab] = await withTimeout(
     chrome.tabs.query({ active: true, currentWindow: true }),
     TAB_READ_TIMEOUT_MS,

@@ -1,7 +1,8 @@
 import { type TargetId, TARGET_IDS } from './constants';
+import { createSerialQueue } from './serialQueue';
 
 const SETTINGS_KEY = 'settings';
-let settingsSaveTail: Promise<void> = Promise.resolve();
+const runSettingsSave = createSerialQueue();
 
 export interface AppSettings {
   defaultTargetId: TargetId;
@@ -40,12 +41,7 @@ export async function getSettings(): Promise<AppSettings> {
 }
 
 export function saveSettings(partial: Partial<AppSettings>): Promise<AppSettings> {
-  const operation = settingsSaveTail.then(() => saveSettingsUnlocked(partial));
-  settingsSaveTail = operation.then(
-    () => undefined,
-    () => undefined
-  );
-  return operation;
+  return runSettingsSave(() => saveSettingsUnlocked(partial));
 }
 
 async function saveSettingsUnlocked(partial: Partial<AppSettings>): Promise<AppSettings> {

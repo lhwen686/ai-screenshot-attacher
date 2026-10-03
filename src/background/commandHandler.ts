@@ -1,5 +1,4 @@
 import { readClipboardImage } from '../clipboard/readClipboardImage';
-import { writeClipboardImage } from '../clipboard/writeClipboardImage';
 import { runWithClipboardOperationLock } from '../clipboard/clipboardOperationLock';
 import type { ClipboardReadResult } from '../clipboard/types';
 import { AI_TARGETS, LAST_OPERATION_KEY, USER_MESSAGES, type TargetId } from '../shared/constants';
@@ -7,10 +6,12 @@ import { getErrorMessage, type AttachErrorType } from '../shared/errors';
 import { logger } from '../shared/logger';
 import type { OperationResult } from '../shared/messages';
 import { getSettings, type AppSettings } from '../shared/settings';
+import { createSerialQueue } from '../shared/serialQueue';
 import { withTimeout } from '../shared/withTimeout';
+import { prepareFailureFeedback } from './failureFeedback';
 import { executeAttachRuntime, getOrCreateTargetTab, showToastOnActivePage, showToastOnPage } from './tabManager';
 
-let manualAttachWorkflowTail: Promise<void> = Promise.resolve();
+const runManualAttachWorkflow = createSerialQueue();
 const MANUAL_SETTINGS_TIMEOUT_MS = 5000;
 const MANUAL_FEEDBACK_TIMEOUT_MS = 5000;
 let latestOperationResult: OperationResult | undefined;
@@ -46,19 +47,13 @@ export function attachToTarget(targetId?: TargetId): Promise<OperationResult> {
     (value) => ({ ok: true, value }),
     (error: unknown) => ({ ok: false, error })
   );
-  const operation = manualAttachWorkflowTail
-    .then(() => preparation)
-    .then((settled) => {
-      if (!settled.ok) {
-        throw settled.error;
-      }
-      return attachToTargetUnlocked(settled.value);
-    });
-  manualAttachWorkflowTail = operation.then(
-    () => undefined,
-    () => undefined
-  );
-  return operation;
+  return runManualAttachWorkflow(async () => {
+    const settled = await preparation;
+    if (!settled.ok) {
+      throw settled.error;
+    }
+    return attachToTargetUnlocked(settled.value);
+  });
 }
 
 async function prepareManualAttach(targetId?: TargetId): Promise<PreparedManualAttach> {
@@ -124,19 +119,7 @@ async function attachToTargetUnlocked(prepared: PreparedManualAttach): Promise<O
 
     const mutationUnconfirmed =
       attachResult.outcome === 'unknown' || attachResult.error === 'PREVIOUS_OPERATION_UNCONFIRMED';
-    const fallbackMessage = mutationUnconfirmed
-      ? USER_MESSAGES.attachUnconfirmed
-      : settings.writeBackOnFailure
-        ? USER_MESSAGES.attachFallback
-        : USER_MESSAGES.attachFallbackNoWrite;
-    let finalMessage: string = fallbackMessage;
-
-    if (settings.writeBackOnFailure && !mutationUnconfirmed) {
-      const writeResult = await runWithClipboardOperationLock(() => writeClipboardImage(clipboardResult.image));
-      if (!writeResult.ok) {
-        finalMessage = `${fallbackMessage}（写回剪贴板失败，但原剪贴板通常仍保留截图。）`;
-      }
-    }
+    const finalMessage = await prepareFailureFeedback(clipboardResult.image, settings, mutationUnconfirmed);
 
     if (settings.showPageToast && tabId !== undefined) {
       const toastTabId = tabId;

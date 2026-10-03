@@ -1,11 +1,11 @@
 import type { AiTargetAdapter, AttachResult, AdapterSelectorSet } from './types';
 import {
   GENERIC_ATTACHMENT_PREVIEW_SELECTORS,
-  findExplicitComposerRoot,
+  findComposerScope,
   focusFirstInput,
-  querySelectorCandidates,
   tryAttachViaPaste,
-  waitForAnyElement
+  waitForAnyElement,
+  type ComposerScope
 } from '../content/domUtils';
 
 const strongInputSelectors = [
@@ -60,7 +60,9 @@ export const claudeAdapter: AiTargetAdapter = {
     }
     const { root: composerRoot } = composerScope;
 
-    const result = await tryAttachViaPaste(file, selectors.textInputs, selectors.attachmentPreviews, composerRoot);
+    const result = await tryAttachViaPaste(file, selectors.textInputs, selectors.attachmentPreviews, {
+      scopeRoot: composerRoot
+    });
     return result.ok || result.outcome === 'unknown'
       ? result
       : {
@@ -79,19 +81,6 @@ export const claudeAdapter: AiTargetAdapter = {
   }
 };
 
-function findActiveClaudeComposerScope(): { input: HTMLElement; root: HTMLElement } | undefined {
-  const inputs = querySelectorCandidates<HTMLElement>(selectors.textInputs, { visibleOnly: true });
-  for (const input of inputs) {
-    const explicitRoot = findExplicitComposerRoot(input);
-    if (explicitRoot) {
-      return { input, root: explicitRoot };
-    }
-
-    if (strongInputSelectors.some((selector) => input.matches(selector))) {
-      const form = input.closest('form');
-      return { input, root: form instanceof HTMLElement ? form : input };
-    }
-  }
-
-  return undefined;
+function findActiveClaudeComposerScope(): ComposerScope | undefined {
+  return findComposerScope(selectors.textInputs, strongInputSelectors);
 }

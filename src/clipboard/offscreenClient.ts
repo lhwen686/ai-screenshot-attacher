@@ -1,21 +1,13 @@
 import { OFFSCREEN_DOCUMENT_PATH } from '../shared/constants';
+import { createSerialQueue } from '../shared/serialQueue';
 import { withTimeout } from '../shared/withTimeout';
 
 const OFFSCREEN_LIFECYCLE_TIMEOUT_MS = 10000;
 
 let creating: { generation: number; promise: Promise<void> } | undefined;
-let lifecycleTail: Promise<void> = Promise.resolve();
+const enqueueLifecycleOperation = createSerialQueue();
 let documentResetGeneration = 0;
 const documentResetListeners = new Set<(generation: number) => void>();
-
-function enqueueLifecycleOperation(operation: () => Promise<void>): Promise<void> {
-  const result = lifecycleTail.then(operation);
-  lifecycleTail = result.then(
-    () => undefined,
-    () => undefined
-  );
-  return result;
-}
 
 export async function hasOffscreenDocument(path = OFFSCREEN_DOCUMENT_PATH): Promise<boolean> {
   const runtimeWithContexts = chrome.runtime as typeof chrome.runtime & {
