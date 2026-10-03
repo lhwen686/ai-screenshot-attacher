@@ -698,6 +698,68 @@ describe('offscreen clipboard fallback', () => {
     await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
   });
 
+  it('does not report an extension write that the browser re-encoded, but still reports the next new image', async () => {
+    const writtenContents = 'extension-written-image';
+    const image = {
+      dataUrl: `data:image/png;base64,${btoa(writtenContents)}`,
+      fileName: 'screenshot.png',
+      lastModified: 123,
+      mimeType: 'image/png' as const,
+      size: writtenContents.length
+    };
+    const read = vi
+      .fn()
+      .mockResolvedValueOnce([pngClipboardItem('initial')])
+      .mockResolvedValueOnce([pngClipboardItem('re-encoded-extension-write')])
+      .mockResolvedValueOnce([pngClipboardItem('new screenshot')]);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { read, write: vi.fn().mockResolvedValue(undefined) }
+    });
+    vi.stubGlobal(
+      'ClipboardItem',
+      class ClipboardItemMock {
+        constructor() {}
+      }
+    );
+    vi.spyOn(crypto.subtle, 'digest')
+      .mockResolvedValueOnce(new Uint8Array([1]).buffer)
+      .mockResolvedValueOnce(new Uint8Array([2]).buffer)
+      .mockResolvedValueOnce(new Uint8Array([3]).buffer)
+      .mockResolvedValueOnce(new Uint8Array([4]).buffer);
+    vi.mocked(chrome.runtime.sendMessage).mockResolvedValue({ ok: true });
+    const intervalCallbacks: Array<() => void> = [];
+    vi.spyOn(window, 'setInterval').mockImplementation(((handler: TimerHandler) => {
+      intervalCallbacks.push(handler as () => void);
+      return intervalCallbacks.length;
+    }) as typeof window.setInterval);
+
+    await import('../../src/offscreen/offscreen');
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0][0] as OffscreenMessageListener;
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, {
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 10
+    });
+    await expect(
+      sendOffscreenMessage<ClipboardWriteResult>(listener, { type: 'OFFSCREEN_WRITE_CLIPBOARD_IMAGE', image })
+    ).resolves.toEqual({ ok: true });
+
+    intervalCallbacks[0]();
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    const deliveries = () =>
+      vi
+        .mocked(chrome.runtime.sendMessage)
+        .mock.calls.filter(([message]) => (message as { type?: string }).type === 'AUTO_CLIPBOARD_IMAGE_DETECTED');
+    expect(deliveries()).toHaveLength(0);
+
+    intervalCallbacks[0]();
+    await vi.waitFor(() => expect(deliveries()).toHaveLength(1), { timeout: 3000 });
+    expect(deliveries()[0][0]).toMatchObject({ fingerprint: '04' });
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
+  });
+
   it('suppresses a timed-out extension write fingerprint registered after document recovery', async () => {
     const read = vi
       .fn()

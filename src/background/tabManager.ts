@@ -1,4 +1,4 @@
-import { ATTACH_RUNTIME_FILE, AI_TARGETS, TARGET_IDS, type TargetId } from '../shared/constants';
+import { ATTACH_RUNTIME_FILE, AI_TARGETS, TARGET_IDS, isTargetUrl, type TargetId } from '../shared/constants';
 import type { AppSettings } from '../shared/settings';
 import type { AttachResult } from '../adapters/types';
 import type { AttachRuntimePayload } from '../shared/messages';
@@ -289,19 +289,6 @@ async function getWindowsByType(windowType: (typeof TARGET_WINDOW_TYPES)[number]
   } catch (error) {
     logger.debug('window type query failed', { windowType, error });
     throw error;
-  }
-}
-
-function isTargetUrl(rawUrl: string | undefined, hostnames: string[]): boolean {
-  if (!rawUrl) {
-    return false;
-  }
-
-  try {
-    const url = new URL(rawUrl);
-    return url.protocol === 'https:' && hostnames.includes(url.hostname);
-  } catch {
-    return false;
   }
 }
 
@@ -812,21 +799,28 @@ async function waitForTargetDocument(tabId: number, targetId: TargetId, timeoutM
   }
 
   return new Promise((resolve) => {
-    const timeoutId = globalThis.setTimeout(() => {
+    const finish = (ready: boolean) => {
+      globalThis.clearTimeout(timeoutId);
       chrome.tabs.onUpdated.removeListener(listener);
-      resolve(false);
-    }, timeoutMs);
+      chrome.tabs.onRemoved.removeListener(removedListener);
+      resolve(ready);
+    };
+    const timeoutId = globalThis.setTimeout(() => finish(false), timeoutMs);
 
     const listener = (updatedTabId: number, changeInfo: { url?: string }, tab: chrome.tabs.Tab) => {
       const committedUrl = changeInfo.url ?? (tab.pendingUrl ? undefined : tab.url);
       if (updatedTabId === tabId && isTargetUrl(committedUrl, target.hostnames)) {
-        globalThis.clearTimeout(timeoutId);
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve(true);
+        finish(true);
+      }
+    };
+    const removedListener = (removedTabId: number) => {
+      if (removedTabId === tabId) {
+        finish(false);
       }
     };
 
     chrome.tabs.onUpdated.addListener(listener);
+    chrome.tabs.onRemoved.addListener(removedListener);
   });
 }
 

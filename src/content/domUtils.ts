@@ -424,7 +424,7 @@ export async function tryAttachViaDrop(
   return { ok: false, method: 'drop-event', outcome: 'unknown', error: 'DROP_EVENT_NO_PREVIEW' };
 }
 
-function acceptsImage(input: HTMLInputElement): boolean {
+export function acceptsImage(input: HTMLInputElement): boolean {
   const accept = input.accept.trim().toLowerCase();
   if (!accept) {
     return true;
@@ -503,12 +503,12 @@ async function waitForRelaxedAttachmentSuccess(
   return false;
 }
 
-function countPatternMatches(text: string, pattern: RegExp): number {
+export function countPatternMatches(text: string, pattern: RegExp): number {
   const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
   return Array.from(text.matchAll(new RegExp(pattern.source, flags))).length;
 }
 
-function getObservationText(observationRoot: ParentNode): string {
+export function getObservationText(observationRoot: ParentNode): string {
   if (observationRoot instanceof HTMLElement) {
     return observationRoot.innerText ?? observationRoot.textContent ?? '';
   }
