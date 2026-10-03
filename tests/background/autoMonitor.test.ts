@@ -105,7 +105,7 @@ describe('automatic monitor refresh', () => {
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
       type: 'OFFSCREEN_START_AUTO_MONITOR',
-      intervalMs: 1500,
+      intervalMs: 1000,
       resumeBaseline: { fingerprint: 'persisted-baseline' }
     });
   });
@@ -120,7 +120,7 @@ describe('automatic monitor refresh', () => {
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
       type: 'OFFSCREEN_START_AUTO_MONITOR',
-      intervalMs: 1500,
+      intervalMs: 1000,
       resumeBaseline: { fingerprint: 'persisted-baseline' }
     });
   });
@@ -137,7 +137,7 @@ describe('automatic monitor refresh', () => {
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
       type: 'OFFSCREEN_START_AUTO_MONITOR',
-      intervalMs: 1500,
+      intervalMs: 1000,
       resumeBaseline: { fingerprint: 'last-handled-fingerprint' }
     });
   });
@@ -152,7 +152,7 @@ describe('automatic monitor refresh', () => {
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
       type: 'OFFSCREEN_START_AUTO_MONITOR',
-      intervalMs: 1500,
+      intervalMs: 1000,
       resumeBaseline: {}
     });
   });
@@ -168,7 +168,7 @@ describe('automatic monitor refresh', () => {
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
       type: 'OFFSCREEN_START_AUTO_MONITOR',
-      intervalMs: 1500
+      intervalMs: 1000
     });
   });
 
@@ -184,7 +184,7 @@ describe('automatic monitor refresh', () => {
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
       type: 'OFFSCREEN_START_AUTO_MONITOR',
-      intervalMs: 1500
+      intervalMs: 1000
     });
   });
 
@@ -202,7 +202,7 @@ describe('automatic monitor refresh', () => {
       .mocked(chrome.runtime.sendMessage)
       .mock.calls.map(([message]) => message)
       .filter((message) => (message as { type?: string }).type === 'OFFSCREEN_START_AUTO_MONITOR');
-    expect(startMessages).toEqual([{ type: 'OFFSCREEN_START_AUTO_MONITOR', intervalMs: 1500 }]);
+    expect(startMessages).toEqual([{ type: 'OFFSCREEN_START_AUTO_MONITOR', intervalMs: 1000 }]);
   });
 
   it('runs a trailing refresh when state changes during an in-flight refresh', async () => {

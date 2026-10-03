@@ -223,8 +223,8 @@ When enabled:
 - 如果 ChatGPT、Claude、Gemini 或豆包已打开，插件会启动本地 offscreen 剪贴板监控。
 - The monitor records the current clipboard image fingerprint on startup and does not attach that old image.
 - 启动时只记录当前剪贴板图片指纹，不会把旧图片立刻附加上去。
-- It checks for new clipboard images about every 1.5 seconds.
-- 约每 1.5 秒检测一次新的剪贴板图片。
+- It checks for new clipboard images about once per second. Unchanged clipboard contents are compared cheaply and are not re-processed.
+- 约每 1 秒检测一次新的剪贴板图片；剪贴板内容未变化时只做轻量比较，不会重复处理图片。
 - New images are attached to the currently focused AI page first.
 - 新图片会优先附加到当前聚焦的 AI 页面。
 - Attachment work is serialized per target tab, so a manual shortcut and automatic detection cannot mutate the same composer concurrently.
