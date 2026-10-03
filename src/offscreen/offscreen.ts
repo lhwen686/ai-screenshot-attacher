@@ -7,7 +7,12 @@ import {
   type OffscreenClipboardMessage,
   type SupportedClipboardImageType
 } from '../clipboard/types';
-import { AUTO_MONITOR_BASELINE_HEARTBEAT_MS, AUTO_MONITOR_BASELINE_KEY, USER_MESSAGES } from '../shared/constants';
+import {
+  AUTO_MONITOR_BASELINE_HEARTBEAT_MS,
+  AUTO_MONITOR_BASELINE_KEY,
+  AUTO_MONITOR_INTERVAL_MS,
+  USER_MESSAGES
+} from '../shared/constants';
 import type { AutoClipboardImageDetectedMessage, OffscreenClipboardWriteTimedOutMessage } from '../shared/messages';
 
 const CLIPBOARD_READ_DEADLINE_MS = 5000;
@@ -31,6 +36,10 @@ let clipboardWritesInFlight = 0;
 let persistedMonitorBaselineKnown = false;
 let persistedMonitorBaselineFingerprint: string | undefined;
 let persistedMonitorBaselineAt = 0;
+let monitorImageCache: { bytes: Uint8Array; image: ClipboardImagePayload; fingerprint: string } | undefined;
+
+type MonitorReadResult = ClipboardReadResult & { fingerprint?: string };
+type ClipboardBlobConverter = (blob: Blob, type: SupportedClipboardImageType) => Promise<MonitorReadResult>;
 
 chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sender, sendResponse) => {
   if (message.type === 'OFFSCREEN_READ_CLIPBOARD_IMAGE') {
@@ -50,7 +59,7 @@ chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sende
   }
 
   if (message.type === 'OFFSCREEN_START_AUTO_MONITOR') {
-    startAutoMonitor(message.intervalMs ?? 1500, message.resumeBaseline).then(sendResponse);
+    startAutoMonitor(message.intervalMs ?? AUTO_MONITOR_INTERVAL_MS, message.resumeBaseline).then(sendResponse);
     return true;
   }
 
@@ -69,8 +78,9 @@ chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sende
 });
 
 async function readClipboardImageInDocument(
-  options: { usePasteFallback: boolean } = { usePasteFallback: true }
-): Promise<ClipboardReadResult> {
+  options: { usePasteFallback: boolean; convert?: ClipboardBlobConverter } = { usePasteFallback: true }
+): Promise<MonitorReadResult> {
+  const convert = options.convert ?? blobToClipboardPayload;
   let asyncClipboardError: ClipboardReadResult | undefined;
 
   try {
@@ -87,7 +97,7 @@ async function readClipboardImageInDocument(
       }
 
       const blob = await withTimeout(item.getType(supportedType), CLIPBOARD_READ_DEADLINE_MS);
-      return await withTimeout(blobToClipboardPayload(blob, supportedType), CLIPBOARD_READ_DEADLINE_MS);
+      return await withTimeout(convert(blob, supportedType), CLIPBOARD_READ_DEADLINE_MS);
     }
 
     asyncClipboardError = {
@@ -121,7 +131,7 @@ async function readClipboardImageInDocument(
     );
   }
 
-  const pasteCommandResult = await readClipboardImageByPasteCommand();
+  const pasteCommandResult = await readClipboardImageByPasteCommand(convert);
   if (pasteCommandResult.ok) {
     return pasteCommandResult;
   }
@@ -246,9 +256,7 @@ async function startAutoMonitor(
         initialResult.error === 'NO_IMAGE_IN_CLIPBOARD' ||
         initialResult.error === 'UNSUPPORTED_IMAGE_TYPE';
       if (writeStateIsStable && baselineReadIsReliable) {
-        const fingerprint = initialResult.ok
-          ? await withTimeout(createImageFingerprint(initialResult.image), CLIPBOARD_READ_DEADLINE_MS)
-          : undefined;
+        const fingerprint = initialResult.ok ? initialResult.fingerprint : undefined;
         if (
           generation === monitorGeneration &&
           writeGeneration === clipboardWriteGeneration &&
@@ -301,11 +309,45 @@ async function stopAutoMonitor(): Promise<OffscreenMonitorResult> {
   persistedMonitorBaselineKnown = false;
   persistedMonitorBaselineFingerprint = undefined;
   persistedMonitorBaselineAt = 0;
+  monitorImageCache = undefined;
   return { ok: true, active: false };
 }
 
-async function readClipboardImageForAutoMonitor(): Promise<ClipboardReadResult> {
-  return readClipboardImageInDocument({ usePasteFallback: true });
+async function readClipboardImageForAutoMonitor(): Promise<MonitorReadResult> {
+  return readClipboardImageInDocument({ usePasteFallback: true, convert: convertClipboardBlobForMonitor });
+}
+
+async function convertClipboardBlobForMonitor(
+  blob: Blob,
+  sourceType: SupportedClipboardImageType
+): Promise<MonitorReadResult> {
+  // Polls usually see the same clipboard image. Comparing raw bytes first skips PNG conversion, base64 encoding,
+  // and hashing until the clipboard actually changes.
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const cached = monitorImageCache;
+  if (cached && haveSameBytes(cached.bytes, bytes)) {
+    return { ok: true, image: cached.image, fingerprint: cached.fingerprint };
+  }
+
+  const result = await blobToClipboardPayload(blob, sourceType);
+  if (!result.ok) {
+    return result;
+  }
+  const fingerprint = await createImageFingerprint(result.image);
+  monitorImageCache = { bytes, image: result.image, fingerprint };
+  return { ...result, fingerprint };
+}
+
+function haveSameBytes(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 async function pollClipboardForNewImage(generation: number): Promise<void> {
@@ -336,13 +378,8 @@ async function pollClipboardForNewImage(generation: number): Promise<void> {
       return;
     }
 
-    const fingerprint = await withTimeout(createImageFingerprint(result.image), CLIPBOARD_READ_DEADLINE_MS);
-    if (
-      generation !== monitorGeneration ||
-      monitorTimer === undefined ||
-      writeGeneration !== clipboardWriteGeneration ||
-      clipboardWritesInFlight > 0
-    ) {
+    const fingerprint = result.fingerprint;
+    if (!fingerprint) {
       return;
     }
 
@@ -514,7 +551,9 @@ async function blobToClipboardPayload(
   };
 }
 
-function readClipboardImageByPasteCommand(): Promise<ClipboardReadResult> {
+function readClipboardImageByPasteCommand(
+  convert: ClipboardBlobConverter = blobToClipboardPayload
+): Promise<MonitorReadResult> {
   return new Promise((resolve) => {
     const target = document.createElement('div');
     let settled = false;
@@ -539,7 +578,7 @@ function readClipboardImageByPasteCommand(): Promise<ClipboardReadResult> {
       target.remove();
     };
 
-    const done = (result: ClipboardReadResult) => {
+    const done = (result: MonitorReadResult) => {
       if (settled) {
         return;
       }
@@ -569,7 +608,7 @@ function readClipboardImageByPasteCommand(): Promise<ClipboardReadResult> {
         if (supportedFile) {
           done(
             await withTimeout(
-              blobToClipboardPayload(supportedFile, supportedFile.type as SupportedClipboardImageType),
+              convert(supportedFile, supportedFile.type as SupportedClipboardImageType),
               PASTE_FALLBACK_DEADLINE_MS
             )
           );
@@ -589,10 +628,7 @@ function readClipboardImageByPasteCommand(): Promise<ClipboardReadResult> {
           const file = item.getAsFile();
           if (file) {
             done(
-              await withTimeout(
-                blobToClipboardPayload(file, item.type as SupportedClipboardImageType),
-                PASTE_FALLBACK_DEADLINE_MS
-              )
+              await withTimeout(convert(file, item.type as SupportedClipboardImageType), PASTE_FALLBACK_DEADLINE_MS)
             );
             return;
           }

@@ -66,7 +66,7 @@ export function isSupportedTargetUrl(rawUrl: string | undefined): boolean {
 
 export const OFFSCREEN_DOCUMENT_PATH = 'src/offscreen/offscreen.html';
 export const ATTACH_RUNTIME_FILE = 'src/content/attachRuntime.js';
-export const AUTO_MONITOR_INTERVAL_MS = 1500;
+export const AUTO_MONITOR_INTERVAL_MS = 1000;
 export const AUTO_MONITOR_BASELINE_HEARTBEAT_MS = 10000;
 export const AUTO_MONITOR_BASELINE_MAX_AGE_MS = 300000;
 
