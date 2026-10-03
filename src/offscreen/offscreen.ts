@@ -386,8 +386,7 @@ async function pollClipboardForNewImage(generation: number): Promise<void> {
     };
     try {
       const response = (await withTimeout(chrome.runtime.sendMessage(message), MONITOR_DELIVERY_DEADLINE_MS)) as
-        | { ok?: boolean }
-        | undefined;
+        { ok?: boolean } | undefined;
       if (!response?.ok) {
         throw new Error('AUTO_CLIPBOARD_IMAGE_DELIVERY_REJECTED');
       }

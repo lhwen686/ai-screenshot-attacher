@@ -623,8 +623,7 @@ async function isDuplicateAutoImage(deliveryId: string): Promise<boolean> {
       'AUTO_DEDUPE_LOOKUP_TIMEOUT'
     );
     const state = stored[AUTO_DEDUPE_STATE_KEY] as
-      | { deliveryId?: string; fingerprint?: string; at?: number }
-      | undefined;
+      { deliveryId?: string; fingerprint?: string; at?: number } | undefined;
     const storedDeliveryId = state?.deliveryId ?? state?.fingerprint;
     if (storedDeliveryId === deliveryId) {
       lastHandledDeliveryId = storedDeliveryId;
