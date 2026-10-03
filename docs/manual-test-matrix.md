@@ -28,3 +28,13 @@ For public promotion or store submission, also review `PRIVACY.md`, `docs/chrome
 - Debug logs do not include image binary data, base64 data, or chat content.
 - Popup feedback/privacy links open the public GitHub issue and privacy-policy pages.
 - Options page explains first use, privacy boundaries, shortcut management, and feedback.
+
+## Regression Scenarios For The Attachment Pipeline Optimization
+
+- With automatic mode on and a supported page open, a new screenshot attaches within about 1 second.
+- Reload the extension from `chrome://extensions` with a screenshot already on the clipboard: the old image is not attached; the next new screenshot is.
+- Trigger a failed automatic attachment (for example, hide or remove the composer) with "write back on failure" enabled: the write-back does not cause a second automatic attachment.
+- Run a manual Gemini or Doubao attachment while automatic mode is on: the screenshot appears once, not twice.
+- On Gemini, when the upload menu offers no usable upload item, the menu is closed afterward and no OS file picker opens.
+- Press the same shortcut twice quickly: only one attachment appears.
+- Close the target tab while it is still loading after a shortcut: the popup reports a failure promptly instead of waiting about 15 seconds.

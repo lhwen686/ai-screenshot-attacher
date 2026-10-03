@@ -351,17 +351,22 @@ describe('offscreen clipboard fallback', () => {
       intervalMs: 10
     });
 
-    intervalCallbacks[0]();
-    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(2));
-    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
-    intervalCallbacks[0]();
-    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(3));
+    // A poll is skipped while the previous one is still in flight, so keep triggering until each read happens.
+    const pollUntilRead = (count: number) =>
+      vi.waitFor(() => {
+        if (read.mock.calls.length < count) {
+          intervalCallbacks[0]();
+        }
+        expect(read).toHaveBeenCalledTimes(count);
+      });
+    await pollUntilRead(2);
+    await pollUntilRead(3);
     await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
 
     expect(digest).toHaveBeenCalledOnce();
     expect(readAsDataUrl).toHaveBeenCalledOnce();
 
-    intervalCallbacks[0]();
+    await pollUntilRead(4);
     await vi.waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'AUTO_CLIPBOARD_IMAGE_DETECTED', fingerprint: '02' })
@@ -796,7 +801,12 @@ describe('offscreen clipboard fallback', () => {
     ).resolves.toEqual({ ok: true });
 
     intervalCallbacks[0]();
-    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+    // Wait until the poll has finished and recorded the re-encoded image as the new baseline.
+    await vi.waitFor(() =>
+      expect(chrome.storage.local.set).toHaveBeenLastCalledWith({
+        autoMonitorBaselineFingerprint: { fingerprint: '03', observedAt: expect.any(Number) }
+      })
+    );
     await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
     const deliveries = () =>
       vi
@@ -805,7 +815,7 @@ describe('offscreen clipboard fallback', () => {
     expect(deliveries()).toHaveLength(0);
 
     intervalCallbacks[0]();
-    await vi.waitFor(() => expect(deliveries()).toHaveLength(1), { timeout: 3000 });
+    await vi.waitFor(() => expect(deliveries()).toHaveLength(1));
     expect(deliveries()[0][0]).toMatchObject({ fingerprint: '04' });
 
     await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
