@@ -4,7 +4,13 @@ All notable project changes should be recorded here.
 
 ## Unreleased
 
-- None.
+- Automatic mode now checks the clipboard about once per second (previously 1.5 s). Unchanged clipboard contents are compared by raw bytes and are no longer re-converted, re-encoded, or re-hashed on every poll.
+- Automatic mode no longer treats a browser re-encoded copy of an image the extension wrote back to the clipboard as a new screenshot.
+- Gemini upload detection compares status-text match counts instead of slicing by previous text length, and a Gemini menu the extension opened is dismissed when it offers no upload input.
+- A manual attachment stops waiting as soon as its target tab is closed, and the auto monitor ignores load-status changes on unrelated pages.
+- Attachment success detection now reacts to DOM mutations immediately, with a slower backstop poll for layout-only changes.
+- Consolidated duplicated adapter, toast, timeout, queue, and failure-feedback code; the Doubao adapter now reuses the shared attach strategies.
+- Updated dependencies, including Vite 8, Vitest 5, jsdom 30, @vitejs/plugin-react 6, @testing-library/jest-dom 7, and @types/chrome 0.3. TypeScript stays on 5.9 until typescript-eslint supports TypeScript 7.
 
 ## 0.1.0 - 2026-07-10
 
