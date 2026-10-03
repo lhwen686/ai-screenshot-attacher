@@ -831,6 +831,27 @@ describe('target tab selection', () => {
     await expect(attachment).resolves.toMatchObject({ ok: true, outcome: 'confirmed' });
   });
 
+  it('stops waiting for the target document as soon as the tab is closed', async () => {
+    vi.mocked(chrome.tabs.get).mockResolvedValue({
+      id: 11,
+      windowId: 1,
+      status: 'loading',
+      url: 'https://example.com/',
+      pendingUrl: 'https://chatgpt.com/'
+    } as chrome.tabs.Tab);
+
+    const pending = executeAttachRuntime(11, createChatGptPayload('data:image/png;base64,Y2xvc2Vk'));
+    await vi.waitFor(() => expect(chrome.tabs.onRemoved.addListener).toHaveBeenCalled());
+    const removedListener = vi.mocked(chrome.tabs.onRemoved.addListener).mock.calls[0][0] as (tabId: number) => void;
+    removedListener(99);
+    removedListener(11);
+
+    await expect(pending).resolves.toMatchObject({ ok: false, error: 'TARGET_NOT_READY' });
+    expect(chrome.tabs.onUpdated.removeListener).toHaveBeenCalled();
+    expect(chrome.tabs.onRemoved.removeListener).toHaveBeenCalledWith(removedListener);
+    expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+  });
+
   it('quarantines a timed-out page runtime until the underlying mutation settles', async () => {
     vi.useFakeTimers();
     vi.mocked(chrome.tabs.get).mockResolvedValue({

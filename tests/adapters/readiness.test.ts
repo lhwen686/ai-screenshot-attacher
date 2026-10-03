@@ -295,6 +295,62 @@ describe('adapter readiness and input targeting', () => {
     expect(menuItemClick).toHaveBeenCalledOnce();
   });
 
+  it('does not confirm a Gemini upload when text inserted earlier shifts existing status text', async () => {
+    vi.useFakeTimers();
+    installClipboardEventMocks();
+    document.body.innerHTML =
+      '<main><bard-text-input><span id="status">uploading done</span><div class="ql-editor" contenteditable="true"></div><input id="upload" type="file" accept="image/png"></bard-text-input></main>';
+    const composer = document.querySelector<HTMLElement>('bard-text-input')!;
+    const input = document.querySelector<HTMLInputElement>('#upload')!;
+    makeVisible(document.querySelector('.ql-editor')!);
+    composer.innerText = 'uploading done';
+    Object.defineProperty(input, 'files', { configurable: true, get: () => [], set: vi.fn() });
+    input.addEventListener('change', () => {
+      composer.innerText = 'an unrelated longer prefix uploading done';
+    });
+
+    const pending = geminiAdapter.attachImage(new File(['image'], 'screenshot.png', { type: 'image/png' }), {
+      allowClipboardPaste: true
+    });
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toMatchObject({ ok: false, method: 'file-input', outcome: 'unknown' });
+  });
+
+  it('closes a Gemini menu it opened when the menu exposes no upload input', async () => {
+    vi.useFakeTimers();
+    installClipboardEventMocks();
+    document.body.innerHTML =
+      '<main><bard-text-input><div class="ql-editor" contenteditable="true"></div><button id="composer-trigger" aria-label="上传和工具"></button></bard-text-input></main>';
+    makeVisible(document.querySelector('.ql-editor')!);
+    const trigger = document.querySelector<HTMLElement>('#composer-trigger')!;
+    makeVisible(trigger);
+    const escape = vi.fn();
+    trigger.addEventListener('click', () => {
+      const menu = document.createElement('div');
+      menu.setAttribute('role', 'menu');
+      makeVisible(menu);
+      menu.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          escape();
+          menu.remove();
+        }
+      });
+      document.body.append(menu);
+    });
+
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: vi.fn(() => false) });
+
+    const pending = geminiAdapter.attachImage(new File(['image'], 'screenshot.png', { type: 'image/png' }), {
+      allowClipboardPaste: true
+    });
+    await vi.runAllTimersAsync();
+    await pending;
+
+    expect(escape).toHaveBeenCalledOnce();
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+
   it('never clicks a Gemini submit button when no attachment control can be identified', async () => {
     vi.useFakeTimers();
     installClipboardEventMocks();

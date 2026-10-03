@@ -2,8 +2,11 @@ import type { AiTargetAdapter, AttachResult, AdapterSelectorSet } from './types'
 import {
   GENERIC_ATTACHMENT_PREVIEW_SELECTORS,
   GENERIC_FILE_INPUT_SELECTORS,
+  acceptsImage,
+  countPatternMatches,
   findExplicitComposerRoot,
   focusFirstInput,
+  getObservationText,
   isVisible,
   querySelectorCandidates,
   sleep,
@@ -11,7 +14,6 @@ import {
   tryAttachViaDrop,
   tryAttachViaPasteRelaxed,
   tryPasteClipboardViaCommand,
-  waitForAttachmentChange,
   waitForAnyElement
 } from '../content/domUtils';
 
@@ -207,14 +209,17 @@ async function tryGeminiUpload(file: File, composerRoot: HTMLElement): Promise<A
   await sleep(150);
 
   const menuResult = await attachToGeminiFileInputs(file, composerRoots, newMenuRoots);
-  return menuResult.ok || menuResult.outcome === 'unknown'
-    ? menuResult
-    : {
-        ok: false,
-        method: 'file-input',
-        outcome: 'rejected',
-        error: menuResult.error ?? directResult.error ?? 'GEMINI_UPLOAD_INPUT_NOT_FOUND'
-      };
+  if (menuResult.ok || menuResult.outcome === 'unknown') {
+    return menuResult;
+  }
+
+  closeGeminiMenus(newMenuRoots);
+  return {
+    ok: false,
+    method: 'file-input',
+    outcome: 'rejected',
+    error: menuResult.error ?? directResult.error ?? 'GEMINI_UPLOAD_INPUT_NOT_FOUND'
+  };
 }
 
 async function attachToGeminiFileInputs(
@@ -232,8 +237,7 @@ async function attachToGeminiFileInputs(
     let mutated = false;
     try {
       const observationRoot = composerRoots[0] ?? input;
-      const beforeCount = snapshotAttachmentCount(selectors.attachmentPreviews, observationRoot);
-      const beforeText = getObservationText(observationRoot);
+      const before = snapshotGeminiUploadState(file, observationRoot);
       const dataTransfer = new DataTransfer();
       dataTransfer.items.add(file);
       input.files = dataTransfer.files;
@@ -241,8 +245,7 @@ async function attachToGeminiFileInputs(
       input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
       input.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
 
-      const result = await waitForGeminiUploadOutcome(beforeCount, beforeText, file, observationRoot);
-      return result;
+      return await waitForGeminiUploadOutcome(before, file, observationRoot);
     } catch {
       if (mutated) {
         return { ok: false, method: 'file-input', outcome: 'unknown', error: 'FILE_INPUT_ATTACH_UNCONFIRMED' };
@@ -254,33 +257,43 @@ async function attachToGeminiFileInputs(
   return { ok: false, method: 'file-input', outcome: 'rejected', error: 'FILE_INPUT_ATTACH_FAILED' };
 }
 
+interface GeminiUploadState {
+  previewCount: number;
+  invalidTextCount: number;
+  uploadTextCounts: number[];
+  hadFileName: boolean;
+}
+
+function snapshotGeminiUploadState(file: File, observationRoot: ParentNode): GeminiUploadState {
+  const text = getObservationText(observationRoot);
+  return {
+    previewCount: snapshotAttachmentCount(selectors.attachmentPreviews, observationRoot),
+    invalidTextCount: countPatternMatches(text, invalidAttachmentTextPattern),
+    uploadTextCounts: uploadTextPatterns.map((pattern) => countPatternMatches(text, pattern)),
+    hadFileName: text.includes(file.name)
+  };
+}
+
 async function waitForGeminiUploadOutcome(
-  beforeCount: number,
-  beforeText: string,
+  before: GeminiUploadState,
   file: File,
   observationRoot: ParentNode
 ): Promise<AttachResult> {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < 2500) {
-    const currentText = getObservationText(observationRoot);
-    const newText = currentText.slice(Math.min(beforeText.length, currentText.length));
+    // Compare match counts rather than slicing by the previous text length, so edits elsewhere in the composer
+    // cannot shift old status text into the "new" range.
+    const current = snapshotGeminiUploadState(file, observationRoot);
 
-    if (invalidAttachmentTextPattern.test(newText)) {
+    if (current.invalidTextCount > before.invalidTextCount) {
       return { ok: false, method: 'file-input', outcome: 'unknown', error: 'GEMINI_FILE_INPUT_INVALID' };
     }
 
     if (
-      snapshotAttachmentCount(selectors.attachmentPreviews, observationRoot) > beforeCount ||
-      uploadTextPatterns.some((pattern) => pattern.test(newText)) ||
-      (await waitForAttachmentChange(
-        selectors.attachmentPreviews,
-        beforeCount,
-        100,
-        file,
-        observationRoot,
-        beforeText.includes(file.name)
-      ))
+      current.previewCount > before.previewCount ||
+      current.uploadTextCounts.some((count, index) => count > (before.uploadTextCounts[index] ?? 0)) ||
+      (!before.hadFileName && current.hadFileName)
     ) {
       return { ok: true, method: 'file-input', outcome: 'confirmed' };
     }
@@ -308,6 +321,18 @@ function clickGeminiUploadMenuItem(menuRoots: HTMLElement[]): void {
     return uploadMenuTextPattern.test(name) && !isSubmitAction(candidate, name);
   });
   menuItem?.click();
+}
+
+function closeGeminiMenus(menuRoots: HTMLElement[]): void {
+  // A menu the adapter opened must not stay on screen when no upload input was found. Escape is the standard
+  // dismissal for Material menus and never activates a menu item.
+  for (const root of menuRoots) {
+    if (!root.isConnected) {
+      continue;
+    }
+    const target = root.contains(document.activeElement) ? (document.activeElement as HTMLElement) : root;
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+  }
 }
 
 function isSubmitAction(element: HTMLElement, name: string): boolean {
@@ -370,7 +395,7 @@ function findGeminiFileInputs(roots: HTMLElement[]): HTMLInputElement[] {
     for (const selector of selectors.fileInputs) {
       try {
         root.querySelectorAll<HTMLInputElement>(selector).forEach((input) => {
-          if (input.type === 'file' && acceptsGeminiImage(input)) {
+          if (input.type === 'file' && acceptsImage(input)) {
             inputs.add(input);
           }
         });
@@ -393,24 +418,4 @@ function getElementName(element: HTMLElement): string {
   ]
     .filter(Boolean)
     .join(' ');
-}
-
-function acceptsGeminiImage(input: HTMLInputElement): boolean {
-  const accept = input.accept.trim().toLowerCase();
-  return (
-    !accept ||
-    accept.includes('image') ||
-    accept.includes('.png') ||
-    accept.includes('.jpg') ||
-    accept.includes('.jpeg') ||
-    accept.includes('.webp')
-  );
-}
-
-function getObservationText(observationRoot: ParentNode): string {
-  if (observationRoot instanceof HTMLElement) {
-    return observationRoot.innerText ?? observationRoot.textContent ?? '';
-  }
-
-  return document.body?.innerText ?? document.body?.textContent ?? '';
 }

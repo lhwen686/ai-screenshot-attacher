@@ -144,7 +144,9 @@ async function writeClipboardImageInDocument(image: ClipboardImagePayload): Prom
     finalized = true;
     if (writeSucceeded) {
       lastMonitorFingerprint = fingerprint;
-      monitorBaselinePending = fingerprint === undefined;
+      // Chrome may re-encode images written through the async clipboard API, so the bytes read back can differ
+      // from the written payload. The next successful read becomes the baseline instead of a new screenshot.
+      monitorBaselinePending = true;
       pendingDelivery = undefined;
       persistMonitorBaselineFingerprint(fingerprint);
       if (fingerprint) {
@@ -345,6 +347,7 @@ async function pollClipboardForNewImage(generation: number): Promise<void> {
     }
 
     if (monitorBaselinePending) {
+      consumeSuppressedWriteFingerprint(fingerprint);
       lastMonitorFingerprint = fingerprint;
       monitorBaselinePending = false;
       pendingDelivery = undefined;

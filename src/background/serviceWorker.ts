@@ -1,4 +1,4 @@
-import { OFFSCREEN_DOCUMENT_PATH, USER_MESSAGES } from '../shared/constants';
+import { OFFSCREEN_DOCUMENT_PATH, USER_MESSAGES, isSupportedTargetUrl } from '../shared/constants';
 import type { OperationResult, UiMessage } from '../shared/messages';
 import { attachToTarget, getLastOperation, handleCommand } from './commandHandler';
 import { getSettings } from '../shared/settings';
@@ -388,8 +388,9 @@ function scheduleRecoveryAwareAutoMonitorRefresh(): void {
 chrome.tabs.onCreated.addListener(() => scheduleRecoveryAwareAutoMonitorRefresh());
 chrome.tabs.onRemoved.addListener(() => scheduleRecoveryAwareAutoMonitorRefresh());
 chrome.tabs.onActivated.addListener(() => scheduleRecoveryAwareAutoMonitorRefresh());
-chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
-  if (changeInfo.status || changeInfo.url) {
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+  // Any navigation can open or leave a supported page, but load-status churn only matters on a supported page.
+  if (changeInfo.url || (changeInfo.status && isSupportedTargetUrl(tab?.pendingUrl ?? tab?.url))) {
     scheduleRecoveryAwareAutoMonitorRefresh();
   }
 });

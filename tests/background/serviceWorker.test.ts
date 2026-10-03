@@ -750,9 +750,11 @@ describe('service worker integration routing', () => {
     expect(mocks.scheduleAutoMonitorRefresh).toHaveBeenCalledTimes(4);
 
     tabUpdatedListener(1, {}, {} as chrome.tabs.Tab);
+    tabUpdatedListener(1, { status: 'loading' }, { url: 'https://example.com/' } as chrome.tabs.Tab);
+    tabUpdatedListener(1, { status: 'complete' }, { url: 'https://example.com/' } as chrome.tabs.Tab);
     expect(mocks.scheduleAutoMonitorRefresh).toHaveBeenCalledTimes(4);
-    tabUpdatedListener(1, { status: 'complete' }, {} as chrome.tabs.Tab);
-    tabUpdatedListener(1, { url: 'https://chatgpt.com/' }, {} as chrome.tabs.Tab);
+    tabUpdatedListener(1, { status: 'complete' }, { url: 'https://gemini.google.com/app' } as chrome.tabs.Tab);
+    tabUpdatedListener(1, { url: 'https://example.com/' }, { url: 'https://example.com/' } as chrome.tabs.Tab);
     expect(mocks.scheduleAutoMonitorRefresh).toHaveBeenCalledTimes(6);
 
     windowCreatedListener({} as chrome.windows.Window);

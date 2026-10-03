@@ -47,6 +47,23 @@ export const AI_TARGETS: Record<TargetId, TargetDefinition> = {
 
 export const TARGET_IDS = Object.keys(AI_TARGETS) as TargetId[];
 
+export function isTargetUrl(rawUrl: string | undefined, hostnames: string[]): boolean {
+  if (!rawUrl) {
+    return false;
+  }
+
+  try {
+    const url = new URL(rawUrl);
+    return url.protocol === 'https:' && hostnames.includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+export function isSupportedTargetUrl(rawUrl: string | undefined): boolean {
+  return TARGET_IDS.some((targetId) => isTargetUrl(rawUrl, AI_TARGETS[targetId].hostnames));
+}
+
 export const OFFSCREEN_DOCUMENT_PATH = 'src/offscreen/offscreen.html';
 export const ATTACH_RUNTIME_FILE = 'src/content/attachRuntime.js';
 export const AUTO_MONITOR_INTERVAL_MS = 1500;
