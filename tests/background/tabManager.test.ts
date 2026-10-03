@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AttachRuntimePayload } from '../../src/shared/messages';
 import { executeAttachRuntime, getOrCreateTargetTab } from '../../src/background/tabManager';
 import { DEFAULT_SETTINGS } from '../../src/shared/settings';
+import { makeVisible } from '../helpers/dom';
 
 const mocks = vi.hoisted(() => ({
   writeClipboardImage: vi.fn()
@@ -20,21 +21,6 @@ function mockWindowsWith(tab: chrome.tabs.Tab) {
     }
     return [];
   });
-}
-
-function makeVisible(element: Element) {
-  element.getBoundingClientRect = () =>
-    ({
-      bottom: 10,
-      height: 10,
-      left: 0,
-      right: 10,
-      top: 0,
-      width: 10,
-      x: 0,
-      y: 0,
-      toJSON: () => ({})
-    }) as DOMRect;
 }
 
 afterEach(() => {

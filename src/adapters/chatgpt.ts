@@ -2,13 +2,13 @@ import type { AiTargetAdapter, AttachResult, AdapterSelectorSet } from './types'
 import {
   GENERIC_ATTACHMENT_PREVIEW_SELECTORS,
   GENERIC_FILE_INPUT_SELECTORS,
-  findExplicitComposerRoot,
+  findComposerScope,
   focusFirstInput,
-  querySelectorCandidates,
   tryAttachViaDrop,
   tryAttachViaFileInput,
   tryAttachViaPaste,
-  waitForAnyElement
+  waitForAnyElement,
+  type ComposerScope
 } from '../content/domUtils';
 
 const strongInputSelectors = ['#prompt-textarea', '[data-testid="prompt-textarea"]'];
@@ -62,9 +62,10 @@ export const chatgptAdapter: AiTargetAdapter = {
     const { root: composerRoot } = composerScope;
 
     for (const strategy of [
-      () => tryAttachViaPaste(file, selectors.textInputs, selectors.attachmentPreviews, composerRoot),
-      () => tryAttachViaFileInput(file, selectors.fileInputs, selectors.attachmentPreviews, composerRoot),
-      () => tryAttachViaDrop(file, selectors.dropTargets, selectors.attachmentPreviews, composerRoot)
+      () => tryAttachViaPaste(file, selectors.textInputs, selectors.attachmentPreviews, { scopeRoot: composerRoot }),
+      () =>
+        tryAttachViaFileInput(file, selectors.fileInputs, selectors.attachmentPreviews, { scopeRoot: composerRoot }),
+      () => tryAttachViaDrop(file, selectors.dropTargets, selectors.attachmentPreviews, { scopeRoot: composerRoot })
     ]) {
       const result = await strategy();
       if (result.ok || result.outcome === 'unknown') {
@@ -83,26 +84,8 @@ export const chatgptAdapter: AiTargetAdapter = {
   }
 };
 
-function findActiveChatGptComposerScope(): { input: HTMLElement; root: HTMLElement } | undefined {
-  const inputs = querySelectorCandidates<HTMLElement>(selectors.textInputs, { visibleOnly: true });
-  for (const input of inputs) {
-    if (strongInputSelectors.some((selector) => input.matches(selector))) {
-      const unifiedComposer = input.closest('form[data-type="unified-composer"]');
-      if (unifiedComposer instanceof HTMLElement) {
-        return { input, root: unifiedComposer };
-      }
-    }
-
-    const explicitRoot = findExplicitComposerRoot(input);
-    if (explicitRoot) {
-      return { input, root: explicitRoot };
-    }
-
-    if (strongInputSelectors.some((selector) => input.matches(selector))) {
-      const form = input.closest('form');
-      return { input, root: form instanceof HTMLElement ? form : input };
-    }
-  }
-
-  return undefined;
+function findActiveChatGptComposerScope(): ComposerScope | undefined {
+  return findComposerScope(selectors.textInputs, strongInputSelectors, {
+    strongInputRootSelector: 'form[data-type="unified-composer"]'
+  });
 }

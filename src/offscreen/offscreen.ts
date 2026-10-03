@@ -14,12 +14,18 @@ import {
   USER_MESSAGES
 } from '../shared/constants';
 import type { AutoClipboardImageDetectedMessage, OffscreenClipboardWriteTimedOutMessage } from '../shared/messages';
+import { withTimeout as withNamedTimeout } from '../shared/withTimeout';
 
 const CLIPBOARD_READ_DEADLINE_MS = 5000;
 const CLIPBOARD_WRITE_DEADLINE_MS = 10000;
 const MONITOR_DELIVERY_DEADLINE_MS = 60000;
 const PASTE_FALLBACK_DEADLINE_MS = 5000;
 const CLIPBOARD_WRITE_SUPPRESSION_MS = 120000;
+const OFFSCREEN_OPERATION_TIMEOUT = 'OFFSCREEN_OPERATION_TIMEOUT';
+
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T> {
+  return withNamedTimeout(promise, timeoutMs, OFFSCREEN_OPERATION_TIMEOUT);
+}
 
 let monitorTimer: number | undefined;
 let lastMonitorFingerprint: string | undefined;
@@ -192,7 +198,7 @@ async function writeClipboardImageInDocument(image: ClipboardImagePayload): Prom
     finalizeWrite(true, fingerprint);
     return { ok: true };
   } catch (error) {
-    if (error instanceof Error && error.message === 'OFFSCREEN_OPERATION_TIMEOUT') {
+    if (error instanceof Error && error.message === OFFSCREEN_OPERATION_TIMEOUT) {
       void writePromise.then(
         () => finalizeWrite(true, fingerprint),
         () => finalizeWrite(false)
@@ -690,36 +696,4 @@ function dataUrlToBlob(dataUrl: string, fallbackType: SupportedClipboardImageTyp
     bytes[index] = binary.charCodeAt(index);
   }
   return new Blob([bytes], { type: mimeType });
-}
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    let settled = false;
-    const timeoutId = window.setTimeout(() => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      reject(new Error('OFFSCREEN_OPERATION_TIMEOUT'));
-    }, timeoutMs);
-
-    promise.then(
-      (value) => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        window.clearTimeout(timeoutId);
-        resolve(value);
-      },
-      (error: unknown) => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        window.clearTimeout(timeoutId);
-        reject(error);
-      }
-    );
-  });
 }
