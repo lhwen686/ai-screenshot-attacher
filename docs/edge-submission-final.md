@@ -1,10 +1,10 @@
 # Microsoft Edge Add-ons Submission Packet
 
-Status: 0.2.0 candidate; blocked on live Grok acceptance.
+Status: 0.2.0 candidate; blocked on finishing signed-in acceptance.
 
 ## Submission Blockers
 
-- BLOCKER: Grok attachment acceptance in a signed-in browser has not been completed. See `docs/audit-2026-10-27.md`.
+- BLOCKER: Signed-in acceptance is partly done: Grok (popup button and default shortcut) and Gemini passed. Re-test ChatGPT after the composer-scope fix, and run the remaining Grok items (automatic mode, repeated trigger, signed-out failure). See `docs/audit-2026-10-27.md`.
 
 ## Package
 

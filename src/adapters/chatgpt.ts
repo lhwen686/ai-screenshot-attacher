@@ -35,7 +35,7 @@ const selectors: AdapterSelectorSet = {
     '[data-testid*="upload" i]',
     '[aria-label*="attached" i]',
     '[aria-label*="remove" i]',
-    '[aria-label^="移除文件"]',
+    '[aria-label^="移除"]',
     '[aria-label^="打开图片"]',
     'main form img[src^="blob:"]',
     ...GENERIC_ATTACHMENT_PREVIEW_SELECTORS
@@ -87,7 +87,11 @@ export const chatgptAdapter: AiTargetAdapter = {
 };
 
 function findActiveChatGptComposerScope(): ComposerScope | undefined {
-  return findComposerScope(selectors.textInputs, strongInputSelectors, {
+  const scope = findComposerScope(selectors.textInputs, strongInputSelectors, {
     strongInputRootSelector: 'form[data-type="unified-composer"]'
   });
+  // Signed-in chatgpt.com (2026-10-27) renders attachment previews in the composer form, beside the inner wrapper
+  // whose class names contain "composer", so observe the whole form once a composer has been identified.
+  const form = scope?.root.closest('form');
+  return scope && form instanceof HTMLFormElement ? { input: scope.input, root: form } : scope;
 }

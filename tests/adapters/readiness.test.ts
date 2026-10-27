@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe('adapter readiness and input targeting', () => {
-  it.each(['移除文件1：screenshot.png', '打开图片：用户上传的图片'])(
+  it.each(['移除文件1：screenshot.png', '移除“screenshot.png”', '打开图片：用户上传的图片'])(
     'confirms a new ChatGPT attachment control with aria-label %s',
     async (ariaLabel) => {
       vi.useFakeTimers();
@@ -50,6 +50,30 @@ describe('adapter readiness and input targeting', () => {
       attachmentControl.setAttribute('aria-label', '移除文件1：screenshot.png');
       makeVisible(attachmentControl);
       attachments.append(attachmentControl);
+    });
+
+    const pending = chatgptAdapter.attachImage(new File(['image'], 'screenshot.png', { type: 'image/png' }));
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toMatchObject({ ok: true, method: 'paste-event', outcome: 'confirmed' });
+  });
+
+  it('observes a ChatGPT preview rendered in the composer form outside the inner composer wrapper', async () => {
+    vi.useFakeTimers();
+    installClipboardEventMocks();
+    // Signed-in chatgpt.com on 2026-10-27: no #prompt-textarea, no unified-composer form type, and the preview row
+    // sits beside the wrapper whose class names contain "composer".
+    document.body.innerHTML =
+      '<main><form><div id="attachments"></div><div role="presentation" class="relative group/composer">' +
+      '<div contenteditable="true" role="textbox" aria-label="询问 ChatGPT"></div></div></form></main>';
+    const attachments = document.querySelector('#attachments')!;
+    const editor = document.querySelector('[role="textbox"]')!;
+    makeVisible(editor);
+    editor.addEventListener('paste', () => {
+      const preview = document.createElement('img');
+      preview.src = 'blob:https://chatgpt.com/attached-image';
+      makeVisible(preview);
+      attachments.append(preview);
     });
 
     const pending = chatgptAdapter.attachImage(new File(['image'], 'screenshot.png', { type: 'image/png' }));

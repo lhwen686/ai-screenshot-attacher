@@ -1,6 +1,6 @@
 # Chrome Web Store Listing
 
-This is 0.2.0 candidate copy. Complete live Grok acceptance before submitting it to a store. See [the audit](audit-2026-10-27.md).
+This is 0.2.0 candidate copy. Finish the signed-in acceptance recorded in [the audit](audit-2026-10-27.md) before submitting it to a store.
 
 Use this file as the source text for the Chrome Web Store dashboard.
 
