@@ -53,6 +53,6 @@ Earlier on 2026-10-27 all four public URLs returned `404` because GitHub Pages h
 | The four HTTPS addresses above, plus `assets/site.css`                      | `200`, no redirect                                            |
 | `https://lhwen686.github.io/ai-screenshot-attacher/` and its three subpages | `301` to `http://lhw686.me/ai-screenshot-attacher/...`, `200` |
 
-Until the 0.2.0 branch is merged, the hosted pages show the `main` text, which lists four targets.
+The hosted pages follow `main`. Since 0.2.0 was merged on 2026-10-27, they list all five targets.
 
 The extension's privacy button opens `https://github.com/lhwen686/ai-screenshot-attacher/blob/main/PRIVACY.md`. That link does not depend on the personal domain, so it stays even though the website is now published.

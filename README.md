@@ -38,9 +38,9 @@ Browser requirement: Chrome 109+ or a Chromium-based Microsoft Edge version comp
 - Adapter architecture for adding more AI sites later.
 - 使用 adapter 架构，方便后续扩展更多 AI 网站。
 
-Grok support in 0.2.0 targets the signed-in web composer at `https://grok.com/`, using the captured image file without sending a message. Grok inside X is outside the host permissions. Live attachment acceptance is still pending; see [the audit](docs/audit-2026-10-27.md).
+Grok support in 0.2.0 targets the signed-in web composer at `https://grok.com/`, using the captured image file without sending a message. Grok inside X is outside the host permissions. Signed-in acceptance was completed on 2026-10-27; see [the audit](docs/audit-2026-10-27.md).
 
-0.2.0 新增 Grok 网页适配，使用已捕获图片，需在 `grok.com` 登录；不自动发送消息。X 内的 Grok 不在权限范围内。真实附件验收尚未完成，详见[检查报告](docs/audit-2026-10-27.md)。
+0.2.0 新增 Grok 网页适配，使用已捕获图片，需在 `grok.com` 登录；不自动发送消息。X 内的 Grok 不在权限范围内。已于 2026-10-27 在登录状态下完成实测验收，详见[检查报告](docs/audit-2026-10-27.md)。
 
 ## Privacy and Safety / 隐私与安全
 
