@@ -2,6 +2,7 @@ import type { ClipboardImagePayload } from '../clipboard/types';
 import { runWithClipboardOperationLock } from '../clipboard/clipboardOperationLock';
 import { writeClipboardImage } from '../clipboard/writeClipboardImage';
 import { USER_MESSAGES } from '../shared/constants';
+import { t } from '../shared/i18n';
 import type { AppSettings } from '../shared/settings';
 
 /**
@@ -22,7 +23,5 @@ export async function prepareFailureFeedback(
   }
 
   const writeResult = await runWithClipboardOperationLock(() => writeClipboardImage(image));
-  return writeResult.ok
-    ? USER_MESSAGES.attachFallback
-    : `${USER_MESSAGES.attachFallback}（写回剪贴板失败，但原剪贴板通常仍保留截图。）`;
+  return writeResult.ok ? USER_MESSAGES.attachFallback : t('attachFallbackWriteFailed');
 }

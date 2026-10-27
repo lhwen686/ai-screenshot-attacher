@@ -100,7 +100,7 @@ describe('options UI', () => {
 
     await import('../../src/options/Options');
     const autoToggle = await screen.findByRole('checkbox', { name: '启用自动粘贴模式' });
-    const toastToggle = screen.getByRole('checkbox', { name: '操作成功或失败后显示页面 Toast' });
+    const toastToggle = screen.getByRole('checkbox', { name: '附加完成后在页面上显示提示' });
     vi.mocked(chrome.storage.sync.set)
       .mockRejectedValueOnce(new Error('storage unavailable'))
       .mockResolvedValue(undefined);

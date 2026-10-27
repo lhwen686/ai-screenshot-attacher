@@ -11,7 +11,6 @@ describe('extension target permissions and commands', () => {
     for (const id of TARGET_IDS) {
       expect(manifest.commands).toHaveProperty(`attach-to-${id}`);
     }
-    expect(manifest.description.length).toBeLessThanOrEqual(132);
   });
 
   it.each(TARGET_IDS)('recognizes only the HTTPS hosts explicitly granted for %s', (id) => {

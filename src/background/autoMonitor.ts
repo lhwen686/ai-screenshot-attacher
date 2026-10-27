@@ -3,9 +3,9 @@ import {
   AUTO_MONITOR_BASELINE_MAX_AGE_MS,
   AUTO_MONITOR_BASELINE_KEY,
   AUTO_MONITOR_INTERVAL_MS,
-  AI_TARGETS,
   USER_MESSAGES
 } from '../shared/constants';
+import { getTargetDisplayName, t } from '../shared/i18n';
 import type { ClipboardImagePayload, OffscreenMonitorResult } from '../clipboard/types';
 import type { AutoMonitorStatus } from '../shared/messages';
 import { getSettings, type AppSettings } from '../shared/settings';
@@ -96,7 +96,7 @@ export function suspendAutoMonitorRefresh(): void {
     setStatus({
       ...currentStatus,
       active: false,
-      message: '自动粘贴模式正在恢复，请稍后。'
+      message: t('autoMonitorRecovering')
     });
   }
 }
@@ -242,13 +242,14 @@ async function attachAutoClipboardImage(
     throw new Error('AUTO_TARGET_UNAVAILABLE');
   }
 
-  const target = AI_TARGETS[selection.targetId];
+  const targetName = getTargetDisplayName(selection.targetId);
   logger.debug('automatic attach started', { deliveryId, targetId: selection.targetId, tabId: selection.tab.id });
   const attachResult = await executeAttachRuntime(
     selection.tab.id,
     {
       targetId: selection.targetId,
       image,
+      successMessage: USER_MESSAGES.attachSuccess,
       settings: {
         allowClipboardPaste: false,
         showPageToast: settings.showPageToast,
@@ -270,7 +271,7 @@ async function attachAutoClipboardImage(
     await recordAutoOperationResult({
       ok: true,
       targetId: selection.targetId,
-      targetName: target.name,
+      targetName,
       method: attachResult.method,
       message: USER_MESSAGES.attachSuccess,
       trigger: 'auto',
@@ -302,7 +303,7 @@ async function attachAutoClipboardImage(
   await recordAutoOperationResult({
     ok: false,
     targetId: selection.targetId,
-    targetName: target.name,
+    targetName,
     method: mutationMayHaveOccurred ? attachResult.method : 'clipboard-fallback',
     error: failureCode,
     message: finalMessage,
@@ -395,7 +396,7 @@ async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
     return setStatus({
       ...currentStatus,
       active: false,
-      message: '自动粘贴模式正在恢复，请稍后。'
+      message: t('autoMonitorRecovering')
     });
   }
 
@@ -425,7 +426,7 @@ async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
         enabled: true,
         active: false,
         targetCount: 0,
-        message: '自动粘贴模式暂不可用，请稍后重试。'
+        message: t('autoMonitorUnavailable')
       });
     }
   }
@@ -436,9 +437,7 @@ async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
       enabled: settings.autoAttachEnabled,
       active: false,
       targetCount,
-      message: settings.autoAttachEnabled
-        ? '自动粘贴模式已开启，等待打开 ChatGPT / Claude / Gemini / 豆包 / Grok。'
-        : USER_MESSAGES.autoMonitorDisabled
+      message: settings.autoAttachEnabled ? t('autoMonitorWaiting') : USER_MESSAGES.autoMonitorDisabled
     });
   }
 
@@ -447,7 +446,7 @@ async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
       enabled: true,
       active: false,
       targetCount,
-      message: '自动粘贴模式正在恢复，请稍后。'
+      message: t('autoMonitorRecovering')
     });
   }
 
@@ -459,14 +458,14 @@ async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
       enabled: true,
       active: false,
       targetCount,
-      message: '自动粘贴模式正在恢复，请稍后。'
+      message: t('autoMonitorRecovering')
     });
   }
   return setStatus({
     enabled: true,
     active: monitorResult.ok && monitorResult.active,
     targetCount,
-    message: monitorResult.ok ? '自动粘贴模式运行中。' : `自动粘贴模式启动失败：${monitorResult.message}`
+    message: monitorResult.ok ? t('autoMonitorRunning') : t('autoMonitorStartFailed', monitorResult.message)
   });
 }
 

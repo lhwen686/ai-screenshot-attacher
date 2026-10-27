@@ -136,6 +136,8 @@ async function validateManifestAndReferences() {
     checkLocalReference('manifest.json', String(reference));
   }
 
+  await validateLocales(manifest, distManifestText);
+
   const serviceWorkerPath = manifest.background?.service_worker;
   const serviceWorkerSource =
     typeof serviceWorkerPath === 'string' && fileSet.has(serviceWorkerPath)
@@ -147,6 +149,53 @@ async function validateManifestAndReferences() {
       errors.add(`${resource}: required runtime resource is missing`);
     } else if (!serviceWorkerSource.includes(resource)) {
       errors.add(`${resource}: service worker no longer references this runtime resource`);
+    }
+  }
+}
+
+async function validateLocales(manifest, manifestText) {
+  const references = [...new Set([...manifestText.matchAll(/__MSG_(\w+)__/g)].map((match) => match[1]))];
+  const localeFiles = visibleFiles.filter((file) => /^_locales\/[^/]+\/messages\.json$/.test(file));
+  if (!manifest.default_locale) {
+    if (references.length > 0 || localeFiles.length > 0) {
+      errors.add('manifest.json: localized messages require default_locale');
+    }
+    return;
+  }
+
+  const defaultFile = `_locales/${manifest.default_locale}/messages.json`;
+  if (!fileSet.has(defaultFile)) {
+    errors.add(`${defaultFile}: messages for default_locale are missing`);
+    return;
+  }
+
+  const keysByFile = new Map();
+  for (const file of localeFiles) {
+    let messages;
+    try {
+      messages = JSON.parse(await readPackageText(file));
+    } catch (error) {
+      errors.add(`${file}: invalid JSON (${formatError(error)})`);
+      continue;
+    }
+
+    for (const [key, entry] of Object.entries(messages)) {
+      if (typeof entry?.message !== 'string') {
+        errors.add(`${file}: ${key} has no message text`);
+      }
+    }
+    for (const key of references) {
+      if (!Object.hasOwn(messages, key)) {
+        errors.add(`${file}: manifest message ${key} is missing`);
+      }
+    }
+    keysByFile.set(file, Object.keys(messages).sort().join('\n'));
+  }
+
+  const defaultKeys = keysByFile.get(defaultFile);
+  for (const [file, keys] of keysByFile) {
+    if (defaultKeys !== undefined && keys !== defaultKeys) {
+      errors.add(`${file}: message keys differ from ${defaultFile}`);
     }
   }
 }

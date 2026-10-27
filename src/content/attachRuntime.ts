@@ -35,7 +35,7 @@ async function run(payload: AttachRuntimePayload): Promise<AttachResult> {
 
   if (result.ok) {
     if (payload.settings.showPageToast) {
-      showToast(USER_MESSAGES.attachSuccess, 'success');
+      showToast(payload.successMessage ?? USER_MESSAGES.attachSuccess, 'success');
     }
     return result;
   }

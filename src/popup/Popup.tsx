@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './popup.css';
-import { AI_TARGETS, PRIVACY_URL, SUPPORT_URL, TARGET_IDS, USER_MESSAGES, type TargetId } from '../shared/constants';
+import { PRIVACY_URL, SUPPORT_URL, TARGET_IDS, USER_MESSAGES, type TargetId } from '../shared/constants';
+import { getTargetDisplayName, t } from '../shared/i18n';
 import type { AutoMonitorStatus, OperationResult, UiMessage } from '../shared/messages';
 import { getSettings, type AppSettings } from '../shared/settings';
 
@@ -80,7 +81,10 @@ function Popup() {
     };
   }, []);
 
-  const defaultTarget = useMemo(() => AI_TARGETS[settings?.defaultTargetId ?? 'chatgpt'], [settings?.defaultTargetId]);
+  const defaultTargetName = useMemo(
+    () => getTargetDisplayName(settings?.defaultTargetId ?? 'chatgpt'),
+    [settings?.defaultTargetId]
+  );
 
   async function attach(targetId: TargetId, marker: TargetId | 'default' = targetId) {
     setRunningTarget(marker);
@@ -94,7 +98,7 @@ function Popup() {
       setLastResult({
         ok: false,
         targetId,
-        targetName: AI_TARGETS[targetId].name,
+        targetName: getTargetDisplayName(targetId),
         message: USER_MESSAGES.serviceUnavailable,
         trigger: 'manual',
         at: new Date().toISOString()
@@ -108,24 +112,24 @@ function Popup() {
     <main className="popup-shell">
       <header className="popup-header">
         <div>
-          <p className="eyebrow">AI Screenshot Attacher</p>
-          <h1>附加剪贴板截图</h1>
-          <p className="header-copy">截图会进入目标 AI 输入区；发送消息仍由你手动决定。</p>
+          <p className="eyebrow">{t('extName')}</p>
+          <h1>{t('popupTitle')}</h1>
+          <p className="header-copy">{t('popupIntro')}</p>
         </div>
         <span className="status-dot" aria-hidden="true" />
       </header>
 
       <section className="default-target">
-        <span>默认模型</span>
-        <strong>{settings ? defaultTarget.name : settingsLoadFailed ? '加载失败' : '加载中...'}</strong>
+        <span>{t('popupDefaultTarget')}</span>
+        <strong>{settings ? defaultTargetName : settingsLoadFailed ? t('popupLoadFailed') : t('popupLoading')}</strong>
       </section>
 
       <section
         className={`auto-status ${autoStatus?.active ? 'is-active' : settings?.autoAttachEnabled ? 'is-waiting' : ''}`}
       >
-        <span>自动模式</span>
+        <span>{t('popupAutoMode')}</span>
         <strong>{getAutoStatusLabel(settings, autoStatus)}</strong>
-        <small>{autoStatus?.message ?? '打开设置可启用自动粘贴'}</small>
+        <small>{autoStatus?.message ?? t('popupAutoHint')}</small>
       </section>
 
       <button
@@ -139,15 +143,15 @@ function Popup() {
         type="button"
       >
         {runningTarget === 'default'
-          ? '正在附加...'
+          ? t('popupAttaching')
           : settings
-            ? `附加到默认模型（${defaultTarget.name}）`
+            ? t('popupAttachDefault', defaultTargetName)
             : settingsLoadFailed
-              ? '默认模型加载失败'
-              : '正在加载默认模型...'}
+              ? t('popupDefaultLoadFailed')
+              : t('popupDefaultLoading')}
       </button>
 
-      <div className="quick-grid" aria-label="快速目标">
+      <div className="quick-grid" aria-label={t('popupQuickTargets')}>
         {quickTargets.map((targetId) => (
           <button
             className="quick-button"
@@ -156,30 +160,30 @@ function Popup() {
             onClick={() => void attach(targetId)}
             type="button"
           >
-            {runningTarget === targetId ? '处理中' : `附加到 ${AI_TARGETS[targetId].name}`}
+            {runningTarget === targetId ? t('popupWorking') : t('popupAttachTo', getTargetDisplayName(targetId))}
           </button>
         ))}
       </div>
 
       <section className={`result-panel ${lastResult?.ok ? 'is-success' : lastResult ? 'is-error' : ''}`}>
-        <span>最近一次结果</span>
-        <p>{lastResult?.message ?? '暂无操作记录'}</p>
+        <span>{t('popupLastResult')}</span>
+        <p>{lastResult?.message ?? t('popupNoHistory')}</p>
         {lastResult?.targetName ? (
           <small>
-            {lastResult.targetName} · {lastResult.trigger === 'auto' ? '自动' : '手动'}
+            {lastResult.targetName} · {lastResult.trigger === 'auto' ? t('triggerAuto') : t('triggerManual')}
           </small>
         ) : null}
       </section>
 
-      <div className="footer-links" aria-label="帮助链接">
+      <div className="footer-links" aria-label={t('popupHelpLinks')}>
         <button className="link-button" type="button" onClick={() => chrome.runtime.openOptionsPage()}>
-          设置
+          {t('linkSettings')}
         </button>
         <button className="link-button" type="button" onClick={() => void openExternal(SUPPORT_URL)}>
-          反馈
+          {t('linkFeedback')}
         </button>
         <button className="link-button" type="button" onClick={() => void openExternal(PRIVACY_URL)}>
-          隐私
+          {t('linkPrivacy')}
         </button>
       </div>
     </main>
@@ -196,14 +200,16 @@ async function openExternal(url: string): Promise<void> {
 
 function getAutoStatusLabel(settings: AppSettings | null, status: AutoMonitorStatus | null): string {
   if (!settings?.autoAttachEnabled) {
-    return '关闭';
+    return t('autoLabelOff');
   }
 
   if (status?.active) {
-    return '运行中';
+    return t('autoLabelRunning');
   }
 
-  return '等待 AI 页面';
+  return t('autoLabelWaiting');
 }
 
+document.documentElement.lang = t('localeTag');
+document.title = t('extName');
 createRoot(document.getElementById('root')!).render(<Popup />);

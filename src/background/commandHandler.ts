@@ -1,8 +1,9 @@
 import { readClipboardImage } from '../clipboard/readClipboardImage';
 import { runWithClipboardOperationLock } from '../clipboard/clipboardOperationLock';
 import type { ClipboardReadResult } from '../clipboard/types';
-import { AI_TARGETS, LAST_OPERATION_KEY, USER_MESSAGES, type TargetId } from '../shared/constants';
+import { LAST_OPERATION_KEY, USER_MESSAGES, type TargetId } from '../shared/constants';
 import { getErrorMessage, type AttachErrorType } from '../shared/errors';
+import { getTargetDisplayName, t } from '../shared/i18n';
 import { logger } from '../shared/logger';
 import type { OperationResult } from '../shared/messages';
 import { getSettings, type AppSettings } from '../shared/settings';
@@ -99,7 +100,7 @@ async function attachToTargetUnlocked(prepared: PreparedManualAttach): Promise<O
   const { settings, finalTargetId, clipboardResult } = prepared;
   logger.configure({ debug: settings.debugLogs });
 
-  const target = AI_TARGETS[finalTargetId];
+  const targetName = getTargetDisplayName(finalTargetId);
 
   logger.info('attach requested', { targetId: finalTargetId });
 
@@ -124,6 +125,7 @@ async function attachToTargetUnlocked(prepared: PreparedManualAttach): Promise<O
       {
         targetId: finalTargetId,
         image: clipboardResult.image,
+        successMessage: USER_MESSAGES.attachSuccess,
         settings: {
           allowClipboardPaste: true,
           showPageToast: settings.showPageToast,
@@ -138,7 +140,7 @@ async function attachToTargetUnlocked(prepared: PreparedManualAttach): Promise<O
       const result: OperationResult = {
         ok: true,
         targetId: finalTargetId,
-        targetName: target.name,
+        targetName,
         method: attachResult.method,
         message: USER_MESSAGES.attachSuccess,
         trigger: 'manual',
@@ -160,7 +162,7 @@ async function attachToTargetUnlocked(prepared: PreparedManualAttach): Promise<O
     const result: OperationResult = {
       ok: false,
       targetId: finalTargetId,
-      targetName: target.name,
+      targetName,
       method: mutationUnconfirmed ? attachResult.method : 'clipboard-fallback',
       error: attachResult.error ?? 'AUTO_ATTACH_FAILED',
       message: finalMessage,
@@ -259,14 +261,14 @@ function persistActionFeedback(result: OperationResult, revision: number): Promi
 async function setActionFeedback(result: OperationResult): Promise<void> {
   await chrome.action.setBadgeText({ text: result.ok ? 'OK' : '!' });
   await chrome.action.setBadgeBackgroundColor({ color: result.ok ? '#059669' : '#dc2626' });
-  await chrome.action.setTitle({ title: `AI Screenshot Attacher\n${result.message}` });
+  await chrome.action.setTitle({ title: `${t('extName')}\n${result.message}` });
 }
 
 function operationFailure(targetId: TargetId, error: AttachErrorType | string, message: string): OperationResult {
   return {
     ok: false,
     targetId,
-    targetName: AI_TARGETS[targetId].name,
+    targetName: getTargetDisplayName(targetId),
     error,
     message,
     trigger: 'manual',

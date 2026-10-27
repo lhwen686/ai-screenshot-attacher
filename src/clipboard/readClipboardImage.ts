@@ -1,6 +1,7 @@
 import type { ClipboardReadResult } from './types';
 import { ensureOffscreenDocument } from './offscreenClient';
 import { withTimeout } from '../shared/withTimeout';
+import { t } from '../shared/i18n';
 
 const OFFSCREEN_CREATE_TIMEOUT_MS = 10000;
 const OFFSCREEN_RESPONSE_TIMEOUT_MS = 20000;
@@ -18,14 +19,14 @@ export async function readClipboardImage(): Promise<ClipboardReadResult> {
       response ?? {
         ok: false,
         error: 'CLIPBOARD_READ_FAILED',
-        message: '读取剪贴板失败，请重新截图后再试。'
+        message: t('errorClipboardRead')
       }
     );
   } catch {
     return {
       ok: false,
       error: 'CLIPBOARD_READ_FAILED',
-      message: '读取剪贴板失败，请重新截图后再试。'
+      message: t('errorClipboardRead')
     };
   }
 }
