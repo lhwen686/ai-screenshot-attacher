@@ -8,7 +8,7 @@ Browser requirement: Chrome 109+ or a Chromium-based Microsoft Edge version comp
 
 浏览器要求：Chrome 109+，或兼容 Chromium 109+ 的 Microsoft Edge。插件依赖 MV3 offscreen API 访问剪贴板，因此在清单中声明了 `minimum_chrome_version: 109`。
 
-![AI Screenshot Attacher workflow](store-assets/chrome-web-store/screenshot-workflow-1280x800.png)
+![AI Screenshot Attacher overview](store-assets/chrome-web-store/en/screenshot-1-overview-1280x800.png)
 
 ## Who It Is For / 适合谁
 
@@ -33,6 +33,8 @@ Browser requirement: Chrome 109+ or a Chromium-based Microsoft Edge version comp
 - 手动附加到 Gemini 或豆包时，仅会在恢复已捕获截图后尝试真实剪贴板粘贴；自动模式始终使用已捕获的图片数据，不会误用之后变化的剪贴板内容。
 - On failure, optionally write the image back to the clipboard and, when the target composer is reachable, focus it for manual `Ctrl+V` / `Cmd+V`.
 - 自动附加失败时，可选择把图片写回剪贴板；目标输入区仍可访问时，插件会尝试聚焦它，便于手动 `Ctrl+V` / `Cmd+V`。
+- English and Simplified Chinese interface that follows the browser language.
+- 界面支持英文和简体中文，跟随浏览器语言切换。
 - Adapter architecture for adding more AI sites later.
 - 使用 adapter 架构，方便后续扩展更多 AI 网站。
 
@@ -145,6 +147,8 @@ For public release preparation, use:
 公开发布前请使用：
 
 - [Release checklist](docs/release-checklist.md)
+- [Chrome Web Store listing kit (every dashboard field, English and Chinese)](docs/chrome-web-store-listing.md)
+- [Store image sources and how to regenerate them](store-assets/source/README.md)
 - [Chrome Web Store listing notes](docs/chrome-web-store-listing.md)
 - [Manual test matrix](docs/manual-test-matrix.md)
 
@@ -321,7 +325,7 @@ Open the extension options page to change:
 3. Implement `AiTargetAdapter` with `detect`, `waitUntilReady`, `attachImage`, and optional `focusInput`.
 4. Add selector candidates for file inputs, text inputs, drop targets, and attachment previews.
 5. Register the adapter in `src/adapters/registry.ts`.
-6. Add popup/options labels if needed.
+6. Add `target<Name>` and `commandAttach<Name>` messages to both `public/_locales/*/messages.json` files.
 7. Run `npm run build` and manually test the target site.
 
 8. 在 `src/shared/constants.ts` 中新增目标 id。
@@ -329,7 +333,7 @@ Open the extension options page to change:
 10. 实现 `AiTargetAdapter`，包括 `detect`、`waitUntilReady`、`attachImage`，以及可选的 `focusInput`。
 11. 添加文件输入框、文本输入框、拖放区域、附件预览的候选 selector。
 12. 在 `src/adapters/registry.ts` 中注册 adapter。
-13. 如有需要，补充 popup/options 显示标签。
+13. 在两个 `public/_locales/*/messages.json` 中添加 `target<Name>` 和 `commandAttach<Name>` 文案。
 14. 运行 `npm run build`，并手动测试目标站点。
 
 ## Reference / 参考

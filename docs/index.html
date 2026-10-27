@@ -6,8 +6,9 @@
     <title>AI Screenshot Attacher</title>
     <meta
       name="description"
-      content="Attach clipboard screenshots to supported AI chat pages. Review before sending."
+      content="Attach clipboard screenshots to ChatGPT, Claude, Gemini, Doubao, or Grok in one step. You review and send the message yourself."
     />
+    <link rel="icon" href="./assets/icon-128.png" />
     <link rel="stylesheet" href="./assets/site.css" />
   </head>
   <body>
@@ -15,7 +16,7 @@
       <header class="site-header">
         <nav class="nav" aria-label="Main navigation">
           <a class="brand" href="./">
-            <span class="brand-mark">AI</span>
+            <img class="brand-mark" src="./assets/icon-128.png" alt="" />
             <span>AI Screenshot Attacher</span>
           </a>
           <div class="nav-links">
@@ -30,56 +31,132 @@
       <main class="main">
         <section class="hero">
           <div>
-            <p class="eyebrow">Chrome / Edge extension</p>
-            <h1>Clipboard screenshots to AI chat</h1>
+            <p class="eyebrow">Chrome extension · Chrome 扩展</p>
+            <h1>Screenshots into AI chats, in one step</h1>
+            <p class="hero-zh" lang="zh-Hans">截图，一键放进 AI 对话框</p>
             <p class="lead">
-              Attach a copied screenshot to ChatGPT, Claude, Gemini, Doubao, or Grok. The extension attaches the image;
-              you review and send the message yourself.
+              Copy a screenshot and press Alt+Shift+A. It lands in the input box of ChatGPT, Claude, Gemini, Doubao, or
+              Grok, and you still write and send the message yourself.
             </p>
             <p class="lead" lang="zh-Hans">
-              把剪贴板截图附加到 ChatGPT、Claude、Gemini、豆包或 Grok。插件只负责附加图片，消息仍由你自己检查并发送。
+              复制截图后按 Alt+Shift+A，图片就进入 ChatGPT、Claude、Gemini、豆包或 Grok
+              的输入框；要问什么、何时发送，仍由你决定。
             </p>
             <div class="hero-actions">
               <a class="button primary" href="https://github.com/lhwen686/ai-screenshot-attacher">View on GitHub</a>
-              <a class="button" href="./privacy/">Read privacy policy</a>
+              <a class="button" href="./privacy/">Privacy policy / 隐私政策</a>
             </div>
           </div>
 
-          <div class="product-surface" aria-label="Extension workflow preview">
-            <div class="browser-bar" aria-hidden="true">
-              <span class="dot red"></span>
-              <span class="dot yellow"></span>
-              <span class="dot green"></span>
-            </div>
-            <div class="mock-chat">
-              <div class="message"></div>
-              <div class="message secondary"></div>
-              <div class="composer">
-                <div class="thumbnail" aria-hidden="true"></div>
-                <div class="composer-text">Screenshot attached. Write your prompt, then send manually.</div>
-              </div>
-            </div>
+          <figure class="hero-shot">
+            <img
+              src="./assets/screens/hero-en.webp"
+              width="764"
+              height="692"
+              alt="A screenshot attached to an AI chat input box after pressing Alt+Shift+A, with the message not yet sent."
+            />
+          </figure>
+        </section>
+
+        <section class="target-strip" aria-label="Supported AI sites">
+          <span class="strip-label">Works with / 支持</span>
+          <span class="chip">ChatGPT</span>
+          <span class="chip">Claude</span>
+          <span class="chip">Gemini</span>
+          <span class="chip">Doubao / 豆包</span>
+          <span class="chip">Grok</span>
+        </section>
+
+        <section class="section">
+          <h2>What it does <span class="h2-zh" lang="zh-Hans">它做什么</span></h2>
+          <div class="feature-grid">
+            <article class="feature-card">
+              <figure class="shot">
+                <img
+                  src="./assets/screens/popup-en.webp"
+                  width="1280"
+                  height="800"
+                  loading="lazy"
+                  alt="The extension popup with a default AI button, automatic mode status, buttons for five AI sites, and the last result."
+                />
+              </figure>
+              <h3>One popup for everything</h3>
+              <p>Attach to your default AI or pick a site, and see whether the attachment was confirmed.</p>
+              <p class="zh" lang="zh-Hans">一个弹窗完成全部操作：附加到默认 AI 或任选站点，并能看到附加是否已确认。</p>
+            </article>
+            <article class="feature-card">
+              <figure class="shot">
+                <img
+                  src="./assets/screens/auto-mode-en.webp"
+                  width="1280"
+                  height="800"
+                  loading="lazy"
+                  alt="The settings page with automatic paste mode turned on."
+                />
+              </figure>
+              <h3>Optional automatic mode</h3>
+              <p>While an AI page is open, each new screenshot you copy is attached on its own. Off by default.</p>
+              <p class="zh" lang="zh-Hans">可选的自动模式：AI 页面开着时，复制的每张新截图都会自动附加。默认关闭。</p>
+            </article>
+            <article class="feature-card">
+              <figure class="shot">
+                <img
+                  src="./assets/screens/shortcuts-en.webp"
+                  width="1280"
+                  height="800"
+                  loading="lazy"
+                  alt="Keyboard shortcuts Alt+Shift+A, 1, 2, and 3 mapped to the default AI, ChatGPT, Claude, and Gemini."
+                />
+              </figure>
+              <h3>Keyboard first</h3>
+              <p>Alt+Shift+A for your default AI, Alt+Shift+1/2/3 for ChatGPT, Claude, and Gemini.</p>
+              <p class="zh" lang="zh-Hans">
+                键盘直达：Alt+Shift+A 附加到默认 AI，Alt+Shift+1/2/3 对应 ChatGPT、Claude、Gemini。
+              </p>
+            </article>
+            <article class="feature-card">
+              <figure class="shot">
+                <img
+                  src="./assets/screens/privacy-en.webp"
+                  width="1280"
+                  height="800"
+                  loading="lazy"
+                  alt="Privacy boundaries: never sends messages, no chat history access, no screenshot history, no developer servers."
+                />
+              </figure>
+              <h3>Clear privacy boundaries</h3>
+              <p>Never sends messages, never reads chat history, and uploads nothing to the developer.</p>
+              <p class="zh" lang="zh-Hans">隐私边界清楚：绝不自动发送，不读取聊天记录，也不向开发者上传任何内容。</p>
+            </article>
           </div>
         </section>
 
-        <section class="section two-column">
-          <div class="content-block">
-            <h2>What it does</h2>
-            <ul class="list">
-              <li>Reads a clipboard image after a shortcut or popup action.</li>
-              <li>Opens or focuses the selected supported AI page.</li>
-              <li>Attaches the image to the page input when the target site allows it.</li>
-              <li>Falls back to manual paste guidance when automatic attachment is rejected.</li>
-            </ul>
-          </div>
-          <div class="content-block" lang="zh-Hans">
-            <h2>它做什么</h2>
-            <ul class="list">
-              <li>在快捷键或弹窗按钮触发后读取剪贴板图片。</li>
-              <li>打开或聚焦你选择的受支持 AI 页面。</li>
-              <li>在目标网站允许时，把图片附加到输入区。</li>
-              <li>如果自动附加被网站拒绝，会提示你手动粘贴。</li>
-            </ul>
+        <section class="section">
+          <h2>English and Simplified Chinese <span class="h2-zh" lang="zh-Hans">中英双语界面</span></h2>
+          <p class="section-intro">
+            The interface follows your browser language. <span lang="zh-Hans">界面会跟随浏览器语言自动切换。</span>
+          </p>
+          <div class="feature-grid">
+            <figure class="shot">
+              <img
+                src="./assets/screens/popup-zh_CN.webp"
+                width="1280"
+                height="800"
+                loading="lazy"
+                lang="zh-Hans"
+                alt="中文界面的扩展弹窗。"
+              />
+            </figure>
+            <figure class="shot">
+              <img
+                src="./assets/screens/auto-mode-zh_CN.webp"
+                width="1280"
+                height="800"
+                loading="lazy"
+                lang="zh-Hans"
+                alt="中文界面的设置页，已开启自动粘贴模式。"
+              />
+            </figure>
           </div>
         </section>
 
@@ -93,13 +170,16 @@
           </div>
           <div class="text-panel" lang="zh-Hans">
             <h2>隐私边界</h2>
-            <p>没有 analytics。插件不读取聊天记录，不保存截图历史，也不会自动发送 AI 消息。</p>
+            <p>不含任何统计代码。插件不读取聊天记录，不保存截图历史，也不会自动发送 AI 消息。</p>
           </div>
         </section>
       </main>
 
       <footer class="site-footer">
-        <p>AI Screenshot Attacher. Open-source project documentation for browser extension store review.</p>
+        <p>
+          AI Screenshot Attacher is open source. ChatGPT, Claude, Gemini, Doubao, and Grok are trademarks of their
+          respective owners; this project is not affiliated with them.
+        </p>
       </footer>
     </div>
   </body>

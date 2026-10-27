@@ -33,9 +33,8 @@ Validate the scenarios in `docs/manual-test-matrix.md`:
 ## Chrome Web Store Submission
 
 - Upload the zip from `release/`.
-- Use listing text from `docs/chrome-web-store-listing.md`.
-- Upload assets from `store-assets/chrome-web-store/`.
-- Confirm the marquee's "Supported targets" chips match the shipped targets (five in 0.2.0); the other store images name no target list.
+- Fill in every dashboard field from `docs/chrome-web-store-listing.md`, for both the English and the Simplified Chinese listing.
+- Upload the images from `store-assets/chrome-web-store/en/` and `store-assets/chrome-web-store/zh_CN/` to the matching listing; regenerate them with `store-assets/source/README.md` if the interface changed.
 - Confirm store asset dimensions match `docs/store-asset-validation.md`.
 - Confirm the HTTPS public page URLs in `docs/public-site-validation.md` return `200`. GitHub Pages publishes `main:/docs`, so merge the release branch before submitting.
 - Use `PRIVACY.md` as the privacy-policy source.
