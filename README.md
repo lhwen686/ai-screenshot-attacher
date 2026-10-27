@@ -234,6 +234,10 @@ When enabled:
 - 新图片会优先附加到当前聚焦的 AI 页面。
 - Attachment work is serialized per target tab, so a manual shortcut and automatic detection cannot mutate the same composer concurrently.
 - 同一目标标签页的附加操作会串行执行，避免手动快捷键与自动检测同时修改同一个输入区。
+- If a manual shortcut and automatic detection pick up the same screenshot for the same page within 10 seconds, only the first one attaches it. Repeating the manual shortcut is still allowed.
+- 如果手动快捷键和自动检测在 10 秒内对同一页面处理同一张截图，只有先完成的那次会附加；重复按手动快捷键仍然允许。
+- New screenshots are recognized by their pixels, so the same picture placed on the clipboard again in a different encoding is not attached twice.
+- 新截图按像素内容识别；同一张图以不同编码再次进入剪贴板时，不会被重复附加。
 - Manual Gemini/Doubao operations that prepare and paste through the system clipboard are also serialized globally across tabs. Extension-originated clipboard writes are treated as monitor baselines instead of new automatic screenshots.
 - 手动 Gemini/豆包的“准备剪贴板→浏览器粘贴”操作还会在所有标签页间全局串行；插件自身写入的图片会成为监控基线，不会再次被当作新的自动截图。
 - If no supported AI page is open, the monitor stops and no clipboard reads are attempted.

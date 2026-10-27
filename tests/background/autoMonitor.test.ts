@@ -91,7 +91,8 @@ describe('automatic monitor refresh', () => {
         targetId: 'grok',
         image,
         settings: expect.objectContaining({ allowClipboardPaste: false })
-      })
+      }),
+      'auto'
     );
     expect(mocks.writeClipboardImage).not.toHaveBeenCalled();
     expect(mocks.recordOperationResult).toHaveBeenCalledWith(expect.objectContaining({ ok: true, targetId: 'grok' }));
@@ -380,7 +381,8 @@ describe('automatic monitor refresh', () => {
       42,
       expect.objectContaining({
         settings: expect.objectContaining({ allowClipboardPaste: false })
-      })
+      }),
+      'auto'
     );
   });
 
@@ -607,6 +609,32 @@ describe('automatic monitor refresh', () => {
     expect(mocks.writeClipboardImage).not.toHaveBeenCalled();
   });
 
+  it('marks a screenshot handled without feedback when a manual trigger just attached it', async () => {
+    mocks.countOpenTargetTabs.mockResolvedValue(1);
+    mocks.executeAttachRuntime.mockResolvedValue({
+      ok: false,
+      method: 'paste-event',
+      outcome: 'unknown',
+      error: 'RECENTLY_ATTACHED'
+    });
+
+    const { handleAutoClipboardImage, refreshAutoMonitor } = await import('../../src/background/autoMonitor');
+    await refreshAutoMonitor();
+
+    await expect(handleAutoClipboardImage(image, 'fingerprint-manual', 'delivery-manual')).resolves.toBeUndefined();
+    await expect(handleAutoClipboardImage(image, 'fingerprint-manual', 'delivery-manual')).resolves.toBeUndefined();
+
+    expect(mocks.executeAttachRuntime).toHaveBeenCalledOnce();
+    expect(mocks.executeAttachRuntime).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({ targetId: 'chatgpt' }),
+      'auto'
+    );
+    expect(mocks.recordOperationResult).not.toHaveBeenCalled();
+    expect(mocks.showToastOnPage).not.toHaveBeenCalled();
+    expect(mocks.writeClipboardImage).not.toHaveBeenCalled();
+  });
+
   it('deduplicates a late retry by delivery id while allowing a new copy of the same image', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-10T00:00:00Z'));
@@ -811,7 +839,11 @@ describe('automatic monitor refresh', () => {
     await vi.waitFor(() => expect(chrome.storage.local.get).toHaveBeenCalledTimes(3));
     await vi.waitFor(() => expect(mocks.executeAttachRuntime).toHaveBeenCalledTimes(2));
 
-    expect(mocks.executeAttachRuntime).toHaveBeenLastCalledWith(42, expect.objectContaining({ image: latestImage }));
+    expect(mocks.executeAttachRuntime).toHaveBeenLastCalledWith(
+      42,
+      expect.objectContaining({ image: latestImage }),
+      'auto'
+    );
     expect(supersededSettled).toBe(false);
     resolveLatestAttach({ ok: true, method: 'paste-event' });
 

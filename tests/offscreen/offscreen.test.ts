@@ -377,6 +377,72 @@ describe('offscreen clipboard fallback', () => {
     await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
   });
 
+  it('does not deliver the same picture again when the clipboard returns it with different bytes', async () => {
+    const pictures: Record<string, string> = {
+      'baseline bytes': 'baseline picture',
+      'picture a, encoding 1': 'picture a',
+      'picture a, encoding 2': 'picture a',
+      'picture b bytes': 'picture b'
+    };
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async (blob: Blob) => ({ width: 4, height: 1, picture: pictures[await blob.text()], close: vi.fn() }))
+    );
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation((() => {
+      let drawn: { picture: string } | undefined;
+      return {
+        drawImage: (bitmap: { picture: string }) => {
+          drawn = bitmap;
+        },
+        getImageData: () => ({ data: new TextEncoder().encode(drawn?.picture ?? '') })
+      };
+    }) as never);
+    const read = vi
+      .fn()
+      .mockResolvedValueOnce([pngClipboardItem('baseline bytes')])
+      .mockResolvedValueOnce([pngClipboardItem('picture a, encoding 1')])
+      .mockResolvedValueOnce([pngClipboardItem('picture a, encoding 2')])
+      .mockResolvedValueOnce([pngClipboardItem('picture b bytes')]);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { read, write: vi.fn() }
+    });
+    vi.mocked(chrome.runtime.sendMessage).mockResolvedValue({ ok: true });
+    const intervalCallbacks: Array<() => void> = [];
+    vi.spyOn(window, 'setInterval').mockImplementation(((handler: TimerHandler) => {
+      intervalCallbacks.push(handler as () => void);
+      return intervalCallbacks.length;
+    }) as typeof window.setInterval);
+
+    await import('../../src/offscreen/offscreen');
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0][0] as OffscreenMessageListener;
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, {
+      type: 'OFFSCREEN_START_AUTO_MONITOR',
+      intervalMs: 10
+    });
+
+    const pollUntilRead = (count: number) =>
+      vi.waitFor(() => {
+        if (read.mock.calls.length < count) {
+          intervalCallbacks[0]();
+        }
+        expect(read).toHaveBeenCalledTimes(count);
+      });
+    const detectedImages = () =>
+      vi
+        .mocked(chrome.runtime.sendMessage)
+        .mock.calls.map(([message]) => message as { type?: string; image?: { dataUrl: string } })
+        .filter((message) => message.type === 'AUTO_CLIPBOARD_IMAGE_DETECTED')
+        .map((message) => atob(message.image!.dataUrl.split(',')[1]));
+    await pollUntilRead(2);
+    await vi.waitFor(() => expect(detectedImages()).toEqual(['picture a, encoding 1']));
+    await pollUntilRead(3);
+    await pollUntilRead(4);
+    await vi.waitFor(() => expect(detectedImages()).toEqual(['picture a, encoding 1', 'picture b bytes']));
+
+    await sendOffscreenMessage<OffscreenMonitorResult>(listener, { type: 'OFFSCREEN_STOP_AUTO_MONITOR' });
+  });
+
   it('does not redeliver the unchanged clipboard image after a monitor resume', async () => {
     const read = vi.fn().mockResolvedValue([pngClipboardItem('unchanged image')]);
     Object.defineProperty(navigator, 'clipboard', {
