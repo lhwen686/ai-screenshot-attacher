@@ -2,6 +2,7 @@
 // Open render.html?asset=overview&locale=en to preview one image, or render.html?save=1 to write every image.
 import { toCanvas } from 'html-to-image';
 import { allowRenderingWithoutPaint } from './no-paint.js';
+import { captureUi } from './ui-capture.js';
 
 allowRenderingWithoutPaint();
 
@@ -174,7 +175,6 @@ const THUMBNAIL = `<svg viewBox="0 0 160 110" xmlns="http://www.w3.org/2000/svg"
 
 const ICON_URL = '/icons/icon-128.png';
 const messagesCache = new Map();
-const uiCache = new Map();
 
 async function loadMessages(locale) {
   if (!messagesCache.has(locale)) {
@@ -185,34 +185,6 @@ async function loadMessages(locale) {
   }
   const messages = await messagesCache.get(locale);
   return (key) => messages[key]?.message ?? key;
-}
-
-async function captureUi(page, locale, query = '') {
-  const key = `${page}:${locale}:${query}`;
-  if (!uiCache.has(key)) {
-    uiCache.set(
-      key,
-      new Promise((resolve, reject) => {
-        const frame = document.createElement('iframe');
-        frame.style.cssText = `position:absolute;left:-10000px;top:0;width:${page === 'options' ? 840 : 360}px;height:1600px;border:0;`;
-        frame.src = `./ui.html?page=${page}&locale=${locale}&${query}`;
-        frame.addEventListener('load', async () => {
-          try {
-            for (let attempt = 0; attempt < 400 && !frame.contentWindow.uiReady; attempt += 1) {
-              await new Promise((wait) => setTimeout(wait, 25));
-            }
-            resolve(await frame.contentWindow.captureUi());
-          } catch (error) {
-            reject(error);
-          } finally {
-            frame.remove();
-          }
-        });
-        document.body.append(frame);
-      })
-    );
-  }
-  return uiCache.get(key);
 }
 
 const brand = (name) => `<div class="brand"><img src="${ICON_URL}" alt="" /><span>${name}</span></div>`;

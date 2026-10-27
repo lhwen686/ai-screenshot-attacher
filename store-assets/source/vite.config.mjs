@@ -1,4 +1,4 @@
-// Dev server for rendering the Chrome Web Store images. See README.md in this folder.
+// Dev server for rendering the Chrome Web Store images and the promo video's UI layers. See README.md in this folder.
 import react from '@vitejs/plugin-react';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
@@ -8,6 +8,7 @@ import { defineConfig } from 'vite';
 
 const repoRoot = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const outputRoot = resolve(repoRoot, 'store-assets/chrome-web-store');
+const videoRoot = resolve(repoRoot, 'store-assets/video');
 
 // The store wants 24-bit PNGs without an alpha channel, so the page posts raw RGBA pixels and this encodes RGB.
 function encodeRgbPng(width, height, rgba) {
@@ -85,8 +86,38 @@ function saveRenderedAssets() {
   };
 }
 
+// video-layers.html posts PNG captures for public/ui and their layout data for src/ui-layers.json, written as sent.
+function saveVideoLayers() {
+  return {
+    name: 'save-video-layers',
+    configureServer(server) {
+      server.middlewares.use('/__save-video', (request, response) => {
+        const url = new URL(request.url ?? '', 'http://localhost');
+        const file = url.searchParams.get('file') ?? '';
+        if (
+          request.method !== 'POST' ||
+          !(/^public\/ui\/[a-z0-9_-]+\.png$/i.test(file) || file === 'src/ui-layers.json')
+        ) {
+          response.statusCode = 400;
+          response.end('bad request');
+          return;
+        }
+
+        const chunks = [];
+        request.on('data', (data) => chunks.push(data));
+        request.on('end', () => {
+          const target = resolve(videoRoot, file);
+          mkdirSync(dirname(target), { recursive: true });
+          writeFileSync(target, Buffer.concat(chunks));
+          response.end('saved');
+        });
+      });
+    }
+  };
+}
+
 export default defineConfig({
   root: repoRoot,
-  plugins: [react(), saveRenderedAssets()],
+  plugins: [react(), saveRenderedAssets(), saveVideoLayers()],
   server: { port: 5179, strictPort: true }
 });

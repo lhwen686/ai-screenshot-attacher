@@ -8,6 +8,7 @@ All notable project changes should be recorded here.
 - Rebuilt the Chrome Web Store images in both languages from the real popup and settings page: five screenshots, the small promo tile, and the marquee, all 24-bit PNG without alpha as the store requires. Added a 300×300 Edge logo and the render pipeline in `store-assets/source`.
 - Rewrote `docs/chrome-web-store-listing.md` as a field-by-field listing kit (English and Chinese descriptions, permission justifications, data-use disclosure, distribution, reviewer test steps).
 - Refreshed the public website with the new screenshots and the extension icon.
+- Added promo videos for Bilibili, YouTube, and the store's promo video field: a 55-second landscape cut and a 40-second vertical cut in English and Simplified Chinese, with covers, rendered by the Remotion project in `store-assets/video` around captures of the real popup and settings page. Upload titles, descriptions, and tags are in `docs/video-upload-kit.md`.
 - Added Grok (`grok.com`) as a target in adapters, popup, settings, commands, and automatic routing, with a scoped composer fixture and regression coverage. Signed-in acceptance on grok.com was completed on 2026-10-27.
 - Coalesced overlapping manual triggers for the same captured image and target while allowing a deliberate repeat after completion.
 - Invalidated automatic deliveries still awaiting target selection when the monitor stops.

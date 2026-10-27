@@ -25,14 +25,14 @@ This kit follows the Developer Dashboard tabs. Paste each block into the matchin
 
 ### 共用字段 / Shared fields
 
-| 字段                      | 内容                                                    |
-| ------------------------- | ------------------------------------------------------- |
-| 类别 / Category           | Productivity → Tools（也可选 Workflow & Planning）      |
-| 商店图标 / Store icon     | `store-assets/chrome-web-store/icon-128.png`（128×128） |
-| 主页 / Homepage URL       | `https://lhw686.me/ai-screenshot-attacher/`             |
-| 支持 / Support URL        | `https://lhw686.me/ai-screenshot-attacher/support/`     |
-| 成人内容 / Mature content | 否 / No                                                 |
-| 宣传视频 / Promo video    | 不填（可选）                                            |
+| 字段                      | 内容                                                                          |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| 类别 / Category           | Productivity → Tools（也可选 Workflow & Planning）                            |
+| 商店图标 / Store icon     | `store-assets/chrome-web-store/icon-128.png`（128×128）                       |
+| 主页 / Homepage URL       | `https://lhw686.me/ai-screenshot-attacher/`                                   |
+| 支持 / Support URL        | `https://lhw686.me/ai-screenshot-attacher/support/`                           |
+| 成人内容 / Mature content | 否 / No                                                                       |
+| 宣传视频 / Promo video    | 可选：宣传片传到 YouTube 后填链接，见 [宣传视频发布资料](video-upload-kit.md) |
 
 截图和宣传图在两种语言下分别上传，文件都在 `store-assets/chrome-web-store/<语言>/`：
 

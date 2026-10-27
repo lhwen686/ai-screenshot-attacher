@@ -38,7 +38,13 @@ export default tseslint.config(
     }
   },
   {
-    files: ['*.config.js', 'eslint.config.js', 'scripts/**/*.mjs', 'store-assets/source/**/*.mjs'],
+    files: [
+      '*.config.js',
+      'eslint.config.js',
+      'scripts/**/*.mjs',
+      'store-assets/source/**/*.mjs',
+      'store-assets/video/*.mjs'
+    ],
     languageOptions: {
       globals: {
         ...globals.node,
