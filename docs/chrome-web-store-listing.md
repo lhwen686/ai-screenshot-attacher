@@ -1,6 +1,6 @@
 # Chrome Web Store Listing
 
-This is 0.2.0 candidate copy. Complete live Grok acceptance, refresh the screenshots, and verify the public URLs before submitting it to a store. See [the audit](audit-2026-10-27.md).
+This is 0.2.0 candidate copy. Complete live Grok acceptance before submitting it to a store. See [the audit](audit-2026-10-27.md).
 
 Use this file as the source text for the Chrome Web Store dashboard.
 
@@ -15,12 +15,12 @@ Use this file as the source text for the Chrome Web Store dashboard.
 
 ## Public Website URLs
 
-- Home: `https://lhwen686.github.io/ai-screenshot-attacher/`
-- Privacy: `https://lhwen686.github.io/ai-screenshot-attacher/privacy/`
-- Support: `https://lhwen686.github.io/ai-screenshot-attacher/support/`
-- FAQ: `https://lhwen686.github.io/ai-screenshot-attacher/faq/`
+- Home: `https://lhw686.me/ai-screenshot-attacher/`
+- Privacy: `https://lhw686.me/ai-screenshot-attacher/privacy/`
+- Support: `https://lhw686.me/ai-screenshot-attacher/support/`
+- FAQ: `https://lhw686.me/ai-screenshot-attacher/faq/`
 
-These pages are static files under `docs/` for GitHub Pages publishing. They include English and Simplified Chinese content and no analytics scripts.
+These pages are static files under `docs/`, published by GitHub Pages from `main:/docs`. They include English and Simplified Chinese content and no analytics scripts. The `lhwen686.github.io` addresses redirect to these pages over plain HTTP, so use the HTTPS addresses above.
 
 ## Detailed Description
 

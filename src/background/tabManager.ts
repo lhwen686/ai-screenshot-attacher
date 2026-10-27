@@ -11,6 +11,12 @@ import {
   runWithClipboardOperationLock,
   type DeferClipboardOperationRelease
 } from '../clipboard/clipboardOperationLock';
+import {
+  GEMINI_COMPOSER_INPUT_SELECTORS,
+  GEMINI_COMPOSER_ROOT_SELECTOR,
+  GEMINI_UPLOAD_PREVIEW_SELECTORS,
+  GEMINI_UPLOAD_TEXT_PATTERNS
+} from '../adapters/geminiSelectors';
 
 const TARGET_DOCUMENT_TIMEOUT_MS = 15000;
 const TAB_READ_TIMEOUT_MS = 5000;
@@ -29,6 +35,21 @@ const attachRuntimeQueues = new Map<number, Promise<void>>();
 const pendingAttachOperations = new Map<number, Map<string, Promise<AttachResult>>>();
 const runWithActiveTabReuseAcquisition = createSerialQueue();
 type ScriptExecutionWorld = 'ISOLATED' | 'MAIN';
+
+/** Serializable Gemini selectors handed to the self-contained real-paste function as a script argument. */
+interface GeminiRealPasteDom {
+  composerRootSelector: string;
+  inputSelectors: string[];
+  previewSelectors: string[];
+  progressPatterns: Array<{ source: string; flags: string }>;
+}
+
+const GEMINI_REAL_PASTE_DOM: GeminiRealPasteDom = {
+  composerRootSelector: GEMINI_COMPOSER_ROOT_SELECTOR,
+  inputSelectors: GEMINI_COMPOSER_INPUT_SELECTORS,
+  previewSelectors: GEMINI_UPLOAD_PREVIEW_SELECTORS,
+  progressPatterns: GEMINI_UPLOAD_TEXT_PATTERNS.map(({ source, flags }) => ({ source, flags }))
+};
 
 interface TargetTabCandidate {
   targetId: TargetId;
@@ -484,47 +505,13 @@ async function executeGeminiClipboardPasteRuntime(
     const execution = chrome.scripting.executeScript({
       target: { tabId },
       world: 'ISOLATED',
-      args: [TARGET_DOCUMENT_TIMEOUT_MS, AI_TARGETS.gemini.hostnames],
-      func: async (inputTimeoutMs: number, allowedHostnames: string[]) => {
+      args: [TARGET_DOCUMENT_TIMEOUT_MS, AI_TARGETS.gemini.hostnames, GEMINI_REAL_PASTE_DOM],
+      func: async (inputTimeoutMs: number, allowedHostnames: string[], dom: GeminiRealPasteDom) => {
         if (!allowedHostnames.includes(window.location.hostname.toLowerCase())) {
           return { ok: false, method: 'paste-command', outcome: 'rejected', error: 'TARGET_NOT_READY' };
         }
 
-        const composerRootSelector =
-          'bard-text-input, [data-testid*="composer" i], [data-test-id*="composer" i], [class*="composer" i]';
-        const inputSelectors = [
-          'bard-text-input .ql-editor.textarea.new-input-ui',
-          'bard-text-input .ql-editor[contenteditable="true"]',
-          'bard-text-input [contenteditable="true"]',
-          'rich-textarea textarea',
-          'rich-textarea [contenteditable="true"]',
-          '[data-testid*="composer" i] textarea',
-          '[data-testid*="composer" i] [contenteditable="true"]',
-          '[data-testid*="composer" i] [role="textbox"]',
-          '[data-test-id*="composer" i] textarea',
-          '[data-test-id*="composer" i] [contenteditable="true"]',
-          '[data-test-id*="composer" i] [role="textbox"]',
-          '[class*="composer" i] textarea',
-          '[class*="composer" i] [contenteditable="true"]',
-          '[class*="composer" i] [role="textbox"]'
-        ];
-        const previewSelectors = [
-          'file-preview',
-          'image-preview',
-          'upload-image',
-          'mat-chip',
-          'img[src^="blob:"]',
-          '[class*="image-preview" i]',
-          '[class*="file-preview" i]',
-          '[class*="upload" i]',
-          '[class*="attachment" i]',
-          '[aria-label*="attached" i]',
-          '[aria-label*="uploaded" i]',
-          '[aria-label*="remove" i]',
-          'mat-progress-spinner',
-          'mat-spinner'
-        ];
-        const progressPatterns = [/uploading/i, /processing/i, /attached/i, /上传中/, /正在上传/, /处理中/, /已附加/];
+        const { composerRootSelector, inputSelectors, previewSelectors, progressPatterns } = dom;
 
         const isVisible = (element: Element) => {
           const rect = element.getBoundingClientRect();

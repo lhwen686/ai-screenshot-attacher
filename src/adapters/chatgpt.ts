@@ -11,7 +11,9 @@ import {
   type ComposerScope
 } from '../content/domUtils';
 
-const strongInputSelectors = ['#prompt-textarea', '[data-testid="prompt-textarea"]'];
+// '#mobile-composer-prompt' is the form-based composer chatgpt.com served signed-out visitors on 2026-10-27, at
+// desktop widths too. It has no composer class or test id, so its enclosing form becomes the attachment scope.
+const strongInputSelectors = ['#prompt-textarea', '[data-testid="prompt-textarea"]', '#mobile-composer-prompt'];
 const explicitComposerInputSelectors = [
   '[data-testid*="composer" i] textarea',
   '[data-testid*="composer" i] [contenteditable="true"]',

@@ -4,6 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AttachRuntimePayload } from '../../src/shared/messages';
 import { executeAttachRuntime, getOrCreateTargetTab } from '../../src/background/tabManager';
 import { DEFAULT_SETTINGS } from '../../src/shared/settings';
+import {
+  GEMINI_COMPOSER_INPUT_SELECTORS,
+  GEMINI_COMPOSER_ROOT_SELECTOR,
+  GEMINI_UPLOAD_PREVIEW_SELECTORS,
+  GEMINI_UPLOAD_TEXT_PATTERNS
+} from '../../src/adapters/geminiSelectors';
 import { makeVisible } from '../helpers/dom';
 
 const mocks = vi.hoisted(() => ({
@@ -287,6 +293,47 @@ describe('target tab selection', () => {
     }
   });
 
+  it('hands the Gemini real-paste runtime the shared selectors as JSON-safe arguments', async () => {
+    vi.mocked(chrome.tabs.get).mockResolvedValue({
+      id: 41,
+      windowId: 1,
+      status: 'complete',
+      url: 'https://gemini.google.com/'
+    } as chrome.tabs.Tab);
+    vi.mocked(chrome.scripting.executeScript).mockResolvedValue([
+      { frameId: 0, result: { ok: true, method: 'paste-command', outcome: 'confirmed' } }
+    ] as never);
+
+    await expect(
+      executeAttachRuntime(41, {
+        targetId: 'gemini',
+        image: {
+          dataUrl: 'data:image/png;base64,aGVsbG8=',
+          fileName: 'screenshot.png',
+          lastModified: 123,
+          mimeType: 'image/png',
+          size: 5
+        },
+        settings: {
+          allowClipboardPaste: true,
+          debugLogs: false,
+          showPageToast: true,
+          writeBackOnFailure: true
+        }
+      })
+    ).resolves.toMatchObject({ ok: true, method: 'paste-command' });
+
+    const injection = vi.mocked(chrome.scripting.executeScript).mock.calls[0][0] as unknown as { args: unknown[] };
+    // chrome.scripting passes arguments as JSON, so a RegExp or function would reach the page as an empty object.
+    expect(JSON.parse(JSON.stringify(injection.args))).toEqual(injection.args);
+    expect(injection.args[2]).toEqual({
+      composerRootSelector: GEMINI_COMPOSER_ROOT_SELECTOR,
+      inputSelectors: GEMINI_COMPOSER_INPUT_SELECTORS,
+      previewSelectors: GEMINI_UPLOAD_PREVIEW_SELECTORS,
+      progressPatterns: GEMINI_UPLOAD_TEXT_PATTERNS.map(({ source, flags }) => ({ source, flags }))
+    });
+  });
+
   it('does not treat pre-existing Gemini status text as paste success', async () => {
     vi.useFakeTimers();
     document.body.innerHTML =
@@ -469,6 +516,46 @@ describe('target tab selection', () => {
       value: vi.fn(() => {
         const image = document.createElement('img');
         image.src = 'blob:https://gemini.google.com/sibling-attachment';
+        makeVisible(image);
+        document.querySelector('#attachments')!.append(image);
+        return true;
+      })
+    });
+    vi.mocked(chrome.tabs.get).mockResolvedValue({
+      id: 11,
+      windowId: 1,
+      status: 'complete',
+      url: 'https://gemini.google.com/'
+    } as chrome.tabs.Tab);
+    vi.mocked(chrome.scripting.executeScript).mockImplementation(async (details) => {
+      const injection = details as unknown as {
+        args?: unknown[];
+        func?: (...args: unknown[]) => unknown;
+      };
+      if (!injection.func) {
+        return [];
+      }
+      return [{ frameId: 0, result: await injection.func(...(injection.args ?? [])) }] as never;
+    });
+
+    await expect(executeAttachRuntime(11, createGeminiPayload())).resolves.toMatchObject({
+      ok: true,
+      method: 'paste-command',
+      outcome: 'confirmed'
+    });
+  });
+
+  it('observes a Gemini preview inside input-area-v2 when no bard-text-input wrapper exists', async () => {
+    document.body.innerHTML =
+      '<input-area-v2><div class="text-input-field"><div id="attachments"></div><rich-textarea>' +
+      '<div class="ql-editor textarea new-input-ui" contenteditable="true"></div></rich-textarea></div></input-area-v2>';
+    const editor = document.querySelector('.ql-editor')!;
+    makeVisible(editor);
+    Object.defineProperty(document, 'execCommand', {
+      configurable: true,
+      value: vi.fn(() => {
+        const image = document.createElement('img');
+        image.src = 'blob:https://gemini.google.com/input-area-attachment';
         makeVisible(image);
         document.querySelector('#attachments')!.append(image);
         return true;

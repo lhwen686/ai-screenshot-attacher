@@ -1,6 +1,12 @@
 # Store Asset Validation
 
-0.2.0 content status: the existing screenshots depict the earlier four-target UI. Passing dimension checks does not make these assets ready for a five-target store release. Refresh screenshots after live Grok acceptance.
+0.2.0 content status: `marquee-promo-1400x560.png` is the only asset that names the supported targets. On 2026-10-27 its "Supported targets" chips were redrawn to list ChatGPT, Claude, Gemini, Doubao, and Grok. The other images name no target list: the shortcuts screenshot shows only the default shortcuts (default target, ChatGPT, Claude, Gemini), which 0.2.0 keeps, and the workflow images use generic icons. If Grok fails live acceptance, restore the four-chip marquee from git history before submitting.
+
+How the marquee chips were redrawn, for the next target change:
+
+- Background: `source-gpt-image-2-workflow.png` scaled to 1400 px wide, cropped from y=159, then blended 50% toward white. This reproduces the original chip area to within one color level.
+- Chips: 124×46 px white pills with a 2 px `#CBD5E1` border and Segoe UI Bold 16 px `#1F2937` labels; rows start at y=177.5 and y=269.5, columns at x=759.5 with 16 px gaps.
+- Only the box from (752, 168) to (1240, 324) changed; the title, arrow, card, and edges keep their original pixels.
 
 Validation command:
 

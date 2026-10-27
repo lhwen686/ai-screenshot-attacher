@@ -11,6 +11,10 @@ All notable project changes should be recorded here.
 - Updated Vite, undici, and zod to resolve the dependency advisories found during the 2026-10-27 audit.
 - Made the Chrome 109 build target explicit and replaced deprecated single-bundle build options.
 - Added target/manifest consistency tests and CI checks for package resources, public assets, and dependency advisories. Prepared version 0.2.0 without publishing a release.
+- ChatGPT: recognized the form-based `#mobile-composer-prompt` composer that chatgpt.com served signed-out visitors on 2026-10-27.
+- Gemini: treated `input-area-v2` as the composer root when the older `bard-text-input` wrapper is missing, so attachments rendered outside `rich-textarea` are confirmed instead of reported as unconfirmed.
+- Gemini selectors now live in one module; the injected real-paste function receives them as script arguments instead of keeping its own copy.
+- Published the public website with GitHub Pages from `main:/docs`; store documents now use its HTTPS addresses. The marquee promo image lists all five targets.
 
 - Automatic mode now checks the clipboard about once per second (previously 1.5 s). Unchanged clipboard contents are compared by raw bytes and are no longer re-converted, re-encoded, or re-hashed on every poll.
 - Automatic mode no longer treats a browser re-encoded copy of an image the extension wrote back to the clipboard as a new screenshot.

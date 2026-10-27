@@ -1,12 +1,10 @@
 # Chrome Web Store Submission Packet
 
-Status: 0.2.0 candidate; blocked on public URL verification, live Grok acceptance, and refreshed store screenshots.
+Status: 0.2.0 candidate; blocked on live Grok acceptance.
 
 ## Submission Blockers
 
-- BLOCKER: Public URL values are present in the repository, but a reachability check on 2026-10-27 returned `404 Not Found` for the home, privacy, support, and FAQ URLs. Publish the GitHub Pages site or replace these placeholders with confirmed public URLs before submitting.
 - BLOCKER: Grok attachment acceptance in a signed-in browser has not been completed. See `docs/audit-2026-10-27.md`.
-- BLOCKER: Store screenshots still depict the earlier four-target UI. Refresh them before publishing 0.2.0.
 
 ## Package
 
@@ -54,14 +52,14 @@ Known limits:
 
 ## Public URL Fields
 
-- Home URL: `https://lhwen686.github.io/ai-screenshot-attacher/`
-- Privacy URL placeholder: `https://lhwen686.github.io/ai-screenshot-attacher/privacy/`
-- Support URL placeholder: `https://lhwen686.github.io/ai-screenshot-attacher/support/`
-- FAQ URL: `https://lhwen686.github.io/ai-screenshot-attacher/faq/`
+- Home URL: `https://lhw686.me/ai-screenshot-attacher/`
+- Privacy URL: `https://lhw686.me/ai-screenshot-attacher/privacy/`
+- Support URL: `https://lhw686.me/ai-screenshot-attacher/support/`
+- FAQ URL: `https://lhw686.me/ai-screenshot-attacher/faq/`
 
 Source: `docs/chrome-web-store-listing.md` and `docs/public-site-validation.md`.
 
-Reachability status as of 2026-10-27: BLOCKER until these URLs return successful public responses.
+Reachability status as of 2026-10-27: all four URLs return `200` over HTTPS. GitHub Pages publishes `main:/docs`, so merge the 0.2.0 branch before submitting; until then the site lists four targets.
 
 ## Screenshot File List
 
