@@ -1,8 +1,8 @@
 # AI Screenshot Attacher / AI 截图附加器
 
-Manifest V3 Chrome / Edge extension MVP for attaching the current system clipboard screenshot to ChatGPT, Claude, Gemini, or Doubao. It never sends the AI message automatically.
+Manifest V3 Chrome / Edge extension MVP for attaching the current system clipboard screenshot to ChatGPT, Claude, Gemini, Doubao, or Grok. It never sends the AI message automatically.
 
-这是一个 Manifest V3 Chrome / Edge 浏览器扩展 MVP，用于把当前系统剪贴板里的截图附加到 ChatGPT、Claude、Gemini 或豆包。插件不会自动发送 AI 消息。
+这是一个 Manifest V3 Chrome / Edge 浏览器扩展 MVP，用于把当前系统剪贴板里的截图附加到 ChatGPT、Claude、Gemini、豆包或 Grok。插件不会自动发送 AI 消息。
 
 Browser requirement: Chrome 109+ or a Chromium-based Microsoft Edge version compatible with Chromium 109+. The extension declares `minimum_chrome_version: 109` because clipboard access depends on the MV3 offscreen API.
 
@@ -23,8 +23,8 @@ Browser requirement: Chrome 109+ or a Chromium-based Microsoft Edge version comp
 - 仅在快捷键、弹窗按钮，或用户主动开启自动模式后读取剪贴板截图。
 - Open or activate the selected AI target tab when used manually.
 - 手动使用时会打开或激活指定 AI 目标页面。
-- Optional automatic mode: when enabled, detect new clipboard screenshots only while ChatGPT, Claude, Gemini, or Doubao is already open.
-- 可选自动模式：开启后，仅在 ChatGPT、Claude、Gemini 或豆包已打开时检测新的剪贴板截图。
+- Optional automatic mode: when enabled, detect new clipboard screenshots only while ChatGPT, Claude, Gemini, Doubao, or Grok is already open.
+- 可选自动模式：开启后，仅在 ChatGPT、Claude、Gemini、豆包或 Grok已打开时检测新的剪贴板截图。
 - Reuse supported AI pages opened as Chrome installed desktop app windows when Chrome exposes them to the extension.
 - 支持复用 Chrome “安装为应用”的受支持 AI 桌面窗口。
 - Use site-specific attachment strategies and stop after the first dispatched mutation when the page cannot confirm the result, preventing one trigger from creating duplicate attachments.
@@ -35,6 +35,10 @@ Browser requirement: Chrome 109+ or a Chromium-based Microsoft Edge version comp
 - 自动附加失败时，可选择把图片写回剪贴板；目标输入区仍可访问时，插件会尝试聚焦它，便于手动 `Ctrl+V` / `Cmd+V`。
 - Adapter architecture for adding more AI sites later.
 - 使用 adapter 架构，方便后续扩展更多 AI 网站。
+
+Grok support in 0.2.0 targets the signed-in web composer at `https://grok.com/`, using the captured image file without sending a message. Grok inside X is outside the host permissions. Live attachment acceptance is still pending; see [the audit](docs/audit-2026-10-27.md).
+
+0.2.0 新增 Grok 网页适配，使用已捕获图片，需在 `grok.com` 登录；不自动发送消息。X 内的 Grok 不在权限范围内。真实附件验收尚未完成，详见[检查报告](docs/audit-2026-10-27.md)。
 
 ## Privacy and Safety / 隐私与安全
 
@@ -80,6 +84,7 @@ Host permissions are limited to:
 - `https://gemini.google.com/*`
 - `https://doubao.com/*`
 - `https://www.doubao.com/*`
+- `https://grok.com/*`
 
 No `<all_urls>` permission is required. Clipboard access is handled through an MV3 offscreen document because service workers do not have DOM clipboard access.
 
@@ -177,7 +182,7 @@ Default commands:
 - `Alt+Shift+1`: attach to ChatGPT. / 附加到 ChatGPT。
 - `Alt+Shift+2`: attach to Claude. / 附加到 Claude。
 - `Alt+Shift+3`: attach to Gemini. / 附加到 Gemini。
-- Doubao has no default shortcut because Chrome allows only 4 default command shortcuts per extension. Use the popup button, set Doubao as the default model, or free another shortcut in the browser shortcuts page and assign one manually. / 豆包没有默认快捷键，因为 Chrome 每个扩展最多允许 4 个默认命令快捷键。可使用 popup 按钮、把豆包设为默认模型，或在浏览器快捷键页面释放其他快捷键后手动分配。
+- Doubao and Grok have no default shortcuts because Chrome allows only 4 default command shortcuts per extension. Use the popup button, set either as the default model, or free another shortcut in the browser shortcuts page and assign one manually. / 豆包和 Grok 没有默认快捷键，因为 Chrome 每个扩展最多允许 4 个默认命令快捷键。可使用 popup 按钮、把其中一个设为默认模型，或在浏览器快捷键页面释放其他快捷键后手动分配。
 
 If a shortcut is already used by the browser or OS, change it at `chrome://extensions/shortcuts` or `edge://extensions/shortcuts`.
 
@@ -204,7 +209,7 @@ If a shortcut is already used by the browser or OS, change it at `chrome://exten
 16. 确认插件不会自动发送消息。
 17. 使用 `Alt+Shift+2` 测试 Claude。
 18. 使用 `Alt+Shift+3` 测试 Gemini。
-19. 使用 popup 里的豆包按钮测试，或把豆包设为默认模型后按 `Alt+Shift+A`。
+19. 使用 popup 里的豆包和 Grok 按钮测试，或把其中一个设为默认模型后按 `Alt+Shift+A`。
 20. 清空剪贴板或只复制文本，再触发插件。
 21. 确认 popup 显示 `未检测到剪贴板图片，请先截图后再试。`
 22. 如果自动附加失败，确认截图仍可手动粘贴；目标输入区可访问时，再确认输入框已被聚焦。
@@ -219,8 +224,8 @@ When enabled:
 
 开启后：
 
-- If ChatGPT, Claude, Gemini, or Doubao is already open, the extension starts a local offscreen clipboard monitor.
-- 如果 ChatGPT、Claude、Gemini 或豆包已打开，插件会启动本地 offscreen 剪贴板监控。
+- If ChatGPT, Claude, Gemini, Doubao, or Grok is already open, the extension starts a local offscreen clipboard monitor.
+- 如果 ChatGPT、Claude、Gemini、豆包或 Grok已打开，插件会启动本地 offscreen 剪贴板监控。
 - The monitor records the current clipboard image fingerprint on startup and does not attach that old image.
 - 启动时只记录当前剪贴板图片指纹，不会把旧图片立刻附加上去。
 - It checks for new clipboard images about once per second. Unchanged clipboard contents are compared cheaply and are not re-processed.
@@ -285,7 +290,7 @@ Open the extension options page to change:
 
 打开扩展设置页可以修改：
 
-- Default model/platform: choose ChatGPT, Claude, Gemini, or Doubao for `Alt+Shift+A` and the popup primary button. This does not choose a model version inside those sites. / 默认模型/平台：为 `Alt+Shift+A` 和 popup 主按钮选择 ChatGPT、Claude、Gemini 或豆包。这不会选择站点内部的具体模型版本。
+- Default model/platform: choose ChatGPT, Claude, Gemini, Doubao, or Grok for `Alt+Shift+A` and the popup primary button. This does not choose a model version inside those sites. / 默认模型/平台：为 `Alt+Shift+A` 和 popup 主按钮选择 ChatGPT、Claude、Gemini、豆包或 Grok。这不会选择站点内部的具体模型版本。
 - Whether to show a page toast after attachment success or failure. / 附加成功或失败后是否显示页面 Toast。
 - Whether to enable automatic paste mode. / 是否启用自动粘贴模式。
 - Whether to write the image back to the clipboard on failure. / 失败时是否写回剪贴板。
@@ -300,8 +305,8 @@ Open the extension options page to change:
 - 一些网站可能阻止合成 paste 或 drop 事件。此时插件会保留剪贴板截图，并在目标输入区仍可访问时尝试聚焦输入框。
 - The browser may require clipboard permission before `navigator.clipboard.read()` works.
 - 浏览器可能要求授予剪贴板权限后，`navigator.clipboard.read()` 才能工作。
-- Automatic mode does not open AI pages. It only attaches to already open ChatGPT, Claude, Gemini, or Doubao pages.
-- 自动模式不会打开 AI 页面，只会附加到已经打开的 ChatGPT、Claude、Gemini 或豆包。
+- Automatic mode does not open AI pages. It only attaches to already open ChatGPT, Claude, Gemini, Doubao, or Grok pages.
+- 自动模式不会打开 AI 页面，只会附加到已经打开的 ChatGPT、Claude、Gemini、豆包或 Grok。
 - The extension does not bypass login, account checks, cookies, or site upload limits.
 - 插件不会绕过登录、账号检查、Cookie 或网站上传限制。
 

@@ -6,6 +6,7 @@ const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   build: {
+    target: 'chrome109',
     outDir: resolve(rootDir, 'dist'),
     emptyOutDir: false,
     lib: {
@@ -14,9 +15,9 @@ export default defineConfig({
       formats: ['iife'],
       fileName: () => 'src/content/attachRuntime.js'
     },
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        inlineDynamicImports: true
+        codeSplitting: false
       }
     }
   }

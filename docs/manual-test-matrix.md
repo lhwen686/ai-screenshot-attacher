@@ -14,6 +14,7 @@ For public promotion or store submission, also review `PRIVACY.md`, `docs/chrome
 | Claude  | `Alt+Shift+2` attaches screenshot and does not send | Button attaches to Claude  | New screenshot attaches to focused/open Claude  | Screenshot preserved; input focused when composer is reachable |
 | Gemini  | `Alt+Shift+3` attaches screenshot and does not send | Button attaches to Gemini  | New screenshot attaches to focused/open Gemini  | Screenshot preserved; input focused when composer is reachable |
 | Doubao  | Assign manually or use default model                | Button attaches to Doubao  | New screenshot attaches to focused/open Doubao  | Screenshot preserved; input focused when composer is reachable |
+| Grok    | Assign manually or use default model                | Button attaches to Grok    | New screenshot attaches to focused/open Grok    | Screenshot preserved; input focused when composer is reachable |
 
 ## Required Scenarios
 
@@ -21,7 +22,7 @@ For public promotion or store submission, also review `PRIVACY.md`, `docs/chrome
 - Clipboard contains text only; extension shows the no-image message.
 - Target page is already open in a normal tab.
 - Target page is not open and `openInNewTab` is enabled.
-- Settings can choose ChatGPT, Claude, Gemini, or Doubao as the default model for `Alt+Shift+A` and the popup primary button.
+- Settings can choose ChatGPT, Claude, Gemini, Doubao, or Grok as the default model for `Alt+Shift+A` and the popup primary button.
 - Automatic mode is disabled by default.
 - Automatic mode stops when no supported target page is open.
 - Extension never sends the AI message automatically.
@@ -37,4 +38,20 @@ For public promotion or store submission, also review `PRIVACY.md`, `docs/chrome
 - Run a manual Gemini or Doubao attachment while automatic mode is on: the screenshot appears once, not twice.
 - On Gemini, when the upload menu offers no usable upload item, the menu is closed afterward and no OS file picker opens.
 - Press the same shortcut twice quickly: only one attachment appears.
+- After that operation completes, repeat deliberately with the same image: a second attachment is allowed.
+- Disable automatic mode while target selection is pending: the pending selection must not start an attachment. Browser operations already dispatched cannot be revoked.
 - Close the target tab while it is still loading after a shortcut: the popup reports a failure promptly instead of waiting about 15 seconds.
+
+## Grok Acceptance
+
+Use a synthetic PNG without private content in a signed-in blank chat at `https://grok.com/`. Do not send the message.
+
+- Load the 0.2.0 candidate manually and confirm the popup and options list Grok.
+- Copy the synthetic image to the native system clipboard; attach using the Grok popup button and the default-target shortcut.
+- Check that exactly one attachment appears, any existing draft stays unchanged, and no message is sent.
+- Enable automatic mode for the test, copy a different synthetic image, and check that it attaches once to the focused Grok page. Restore the setting afterward.
+- Verify a repeated trigger while the first attachment is pending does not duplicate it.
+- Check signed-out / unavailable-composer failures and inspect the composer before using manual paste after an unconfirmed result.
+- Grok inside X is outside this adapter's scope.
+
+Current evidence and unrun cases are recorded in [the audit](audit-2026-10-27.md). Synthetic DOM tests do not establish live upload acceptance.

@@ -28,6 +28,15 @@ jobs:
       - name: Verify project
         run: npm run verify
 
+      - name: Validate extension and public assets
+        run: |
+          npm run validate:extension
+          node scripts/validate-store-assets.mjs
+          node scripts/validate-public-site.mjs
+
+      - name: Check dependency advisories
+        run: npm audit --audit-level=high
+
       - name: Package extension
         if: startsWith(github.ref, 'refs/tags/')
         run: npm run package

@@ -1,6 +1,6 @@
 {
   "name": "ai-screenshot-attacher",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -40,7 +40,7 @@
     "prettier": "^3.8.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.59.4",
-    "vite": "^8.3.2",
+    "vite": "^8.3.5",
     "vitest": "^5.0.3"
   }
 }

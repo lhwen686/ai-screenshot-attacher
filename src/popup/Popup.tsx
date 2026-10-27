@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './popup.css';
-import { AI_TARGETS, PRIVACY_URL, SUPPORT_URL, USER_MESSAGES, type TargetId } from '../shared/constants';
+import { AI_TARGETS, PRIVACY_URL, SUPPORT_URL, TARGET_IDS, USER_MESSAGES, type TargetId } from '../shared/constants';
 import type { AutoMonitorStatus, OperationResult, UiMessage } from '../shared/messages';
 import { getSettings, type AppSettings } from '../shared/settings';
 
-const quickTargets: TargetId[] = ['chatgpt', 'claude', 'gemini', 'doubao'];
+const quickTargets = TARGET_IDS;
 
 function Popup() {
   const [settings, setSettings] = useState<AppSettings | null>(null);

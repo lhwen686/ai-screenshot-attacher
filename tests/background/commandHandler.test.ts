@@ -61,17 +61,17 @@ describe('command handler', () => {
     vi.useRealTimers();
   });
 
-  it('routes explicit commands to their targets', async () => {
+  it.each(['claude', 'grok'] as const)('routes the explicit %s command to its target', async (targetId) => {
     mocks.readClipboardImage.mockResolvedValue({ ok: true, image });
     mocks.getOrCreateTargetTab.mockResolvedValue({ id: 42 });
     mocks.executeAttachRuntime.mockResolvedValue({ ok: true, method: 'paste-event' });
 
-    const result = await handleCommand('attach-to-claude');
+    const result = await handleCommand(`attach-to-${targetId}`);
 
     expect(result.ok).toBe(true);
-    expect(result.targetId).toBe('claude');
+    expect(result.targetId).toBe(targetId);
     expect(mocks.getOrCreateTargetTab).toHaveBeenCalledWith(
-      'claude',
+      targetId,
       expect.objectContaining({ defaultTargetId: 'chatgpt' })
     );
     expect(mocks.executeAttachRuntime).toHaveBeenCalledWith(
@@ -197,6 +197,32 @@ describe('command handler', () => {
       42,
       expect.objectContaining({ image: secondImage, targetId: 'claude' })
     );
+  });
+
+  it('coalesces the same manual image queued before the first attachment finishes, but allows a later deliberate repeat', async () => {
+    mocks.readClipboardImage.mockResolvedValue({ ok: true, image });
+    mocks.getOrCreateTargetTab.mockResolvedValue({ id: 42 });
+    let finishFirst!: () => void;
+    mocks.executeAttachRuntime
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishFirst = () => resolve({ ok: true, method: 'paste-event' });
+          })
+      )
+      .mockResolvedValue({ ok: true, method: 'paste-event' });
+
+    const first = attachToTarget('chatgpt');
+    await vi.waitFor(() => expect(mocks.executeAttachRuntime).toHaveBeenCalledOnce());
+    const duplicate = attachToTarget('chatgpt');
+    await vi.waitFor(() => expect(mocks.readClipboardImage).toHaveBeenCalledTimes(2));
+    finishFirst();
+    const results = await Promise.all([first, duplicate]);
+    expect(results[1]).toEqual(results[0]);
+    expect(mocks.executeAttachRuntime).toHaveBeenCalledOnce();
+
+    await attachToTarget('chatgpt');
+    expect(mocks.executeAttachRuntime).toHaveBeenCalledTimes(2);
   });
 
   it('consumes an early preparation rejection while another manual mutation is still queued', async () => {

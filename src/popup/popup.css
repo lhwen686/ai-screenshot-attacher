@@ -163,6 +163,10 @@ h1 {
   gap: 8px;
 }
 
+.quick-button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .quick-button {
   width: 100%;
   border: 1px solid #dbe3ef;

@@ -4,7 +4,7 @@ AI Screenshot Attacher is a browser extension for attaching the current clipboar
 
 ## Single Purpose
 
-The extension has one purpose: after a user action, or after the user explicitly enables automatic mode, attach a clipboard image to ChatGPT, Claude, Gemini, or Doubao. The extension never sends the AI message automatically.
+The extension has one purpose: after a user action, or after the user explicitly enables automatic mode, attach a clipboard image to ChatGPT, Claude, Gemini, Doubao, or Grok. The extension never sends the AI message automatically.
 
 ## Data Handling
 
@@ -29,13 +29,14 @@ The extension has one purpose: after a user action, or after the user explicitly
 - `storage`: saves user settings, latest operation status, and automatic-mode duplicate-suppression state.
 - `offscreen`: reads and writes clipboard images from an MV3 offscreen document because service workers do not have DOM clipboard access.
 
-Host permissions are limited to ChatGPT, Claude, Gemini, and Doubao:
+Host permissions are limited to ChatGPT, Claude, Gemini, Doubao, and Grok:
 
 - `https://chatgpt.com/*`
 - `https://claude.ai/*`
 - `https://gemini.google.com/*`
 - `https://doubao.com/*`
 - `https://www.doubao.com/*`
+- `https://grok.com/*`
 
 ## Automatic Mode
 

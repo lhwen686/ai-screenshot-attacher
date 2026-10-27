@@ -426,7 +426,7 @@ async function refreshAutoMonitorInner(): Promise<AutoMonitorStatus> {
       active: false,
       targetCount,
       message: settings.autoAttachEnabled
-        ? '自动粘贴模式已开启，等待打开 ChatGPT / Claude / Gemini / 豆包。'
+        ? '自动粘贴模式已开启，等待打开 ChatGPT / Claude / Gemini / 豆包 / Grok。'
         : USER_MESSAGES.autoMonitorDisabled
     });
   }
@@ -545,6 +545,9 @@ function isFreshStoredMonitorBaseline(value: unknown): value is { fingerprint: s
 }
 
 async function stopOffscreenMonitorIfPresent(): Promise<void> {
+  // A settings/target lookup that started before this stop must not dispatch a later page mutation.
+  // Browser operations already dispatched cannot be revoked and remain subject to tab mutation quarantine.
+  monitorLifecycleGeneration += 1;
   let shouldSendStop = true;
   try {
     shouldSendStop = await withTimeout(

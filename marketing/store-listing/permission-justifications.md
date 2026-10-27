@@ -31,6 +31,7 @@ The host permissions match the supported targets in `src/shared/constants.ts` an
 | `https://gemini.google.com/*` | `src/shared/constants.ts` target `gemini`; `src/adapters/gemini.ts`; `src/background/tabManager.ts` URL queries and `isTargetUrl()` checks.                     | Open, find, focus, and inject attachment logic on Gemini pages.  | Keep.                                                             |
 | `https://doubao.com/*`        | `src/shared/constants.ts` target `doubao`; `src/adapters/doubao.ts`; `src/background/tabManager.ts` URL queries and `isTargetUrl()` checks.                     | Supports Doubao when the site is on the apex domain.             | Keep because the adapter and target definition support this host. |
 | `https://www.doubao.com/*`    | `src/shared/constants.ts` target `doubao`; `src/adapters/doubao.ts`; default Doubao URL; `src/background/tabManager.ts` URL queries and `isTargetUrl()` checks. | Supports the default Doubao URL and www host.                    | Keep.                                                             |
+| `https://grok.com/*`          | `src/shared/constants.ts` target `grok`; `src/adapters/grok.ts`; `src/background/tabManager.ts` URL queries and `isTargetUrl()` checks.                         | Find, focus, and attach the captured image on Grok web pages.    | Added for Grok; does not include X or other xAI domains.          |
 
 The `/*` path wildcard is intentionally limited to each supported HTTPS host. It is needed because chat pages, app pages, and conversation URLs can live at different paths under the same host. The extension does not request `<all_urls>`, `http://*/*`, or unrelated AI/provider domains.
 
@@ -45,4 +46,4 @@ The `/*` path wildcard is intentionally limited to each supported HTTPS host. It
 
 ## Audit Decision
 
-No manifest permission or host permission should be removed for the current v0.1.0 promotion release candidate. Removing `clipboardWrite` would change the manual Gemini/Doubao paste-preparation path and the user-visible failure fallback; removing `activeTab` would change current feedback behavior. Optional permissions are not recommended for this release because the product does not yet implement a permission-request UX.
+No manifest permission or host permission should be removed for the current v0.2.0 candidate. Removing `clipboardWrite` would change the manual Gemini/Doubao paste-preparation path and the user-visible failure fallback; removing `activeTab` would change current feedback behavior. Optional permissions are not recommended for this release because the product does not yet implement a permission-request UX.

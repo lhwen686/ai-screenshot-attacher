@@ -15,6 +15,7 @@ body:
         - Claude
         - Gemini
         - Doubao
+        - Grok
     validations:
       required: true
   - type: dropdown

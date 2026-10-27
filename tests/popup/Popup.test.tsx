@@ -3,6 +3,23 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 describe('popup UI', () => {
+  it('exposes Grok as a quick target and the selected default action', async () => {
+    vi.resetModules();
+    document.body.innerHTML = '<div id="root"></div>';
+    await chrome.storage.sync.set({ settings: { defaultTargetId: 'grok' } });
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation(async (message) => {
+      if (message.type === 'ATTACH_TO_TARGET') {
+        return { ok: true, targetId: 'grok', message: 'attached', at: new Date(0).toISOString() };
+      }
+      return undefined;
+    });
+    await import('../../src/popup/Popup');
+    await userEvent.click(await screen.findByRole('button', { name: '附加到 Grok', exact: true }));
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'ATTACH_TO_TARGET', targetId: 'grok' });
+    vi.mocked(chrome.runtime.sendMessage).mockClear();
+    await userEvent.click(screen.getByRole('button', { name: '附加到默认模型（Grok）' }));
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'ATTACH_TO_TARGET', targetId: 'grok' });
+  });
   it('renders default state and sends attach messages', async () => {
     vi.resetModules();
     document.body.innerHTML = '<div id="root"></div>';

@@ -1,16 +1,17 @@
 # Microsoft Edge Add-ons Submission Packet
 
-Status: blocked until the public URL fields below resolve successfully.
+Status: 0.2.0 candidate; blocked on public URL verification, live Grok acceptance, and refreshed store screenshots.
 
 ## Submission Blockers
 
-- BLOCKER: Public URL values are present in the repository, but a reachability check on 2026-07-10 returned `404 Not Found` for the home, privacy, support, and FAQ URLs. Publish the GitHub Pages site or replace these placeholders with confirmed public URLs before submitting.
-- No missing package, screenshot, promo image, listing text, reviewer note, or permission-justification value was found in this packet.
+- BLOCKER: Public URL values are present in the repository, but a reachability check on 2026-10-27 returned `404 Not Found` for the home, privacy, support, and FAQ URLs. Publish the GitHub Pages site or replace these placeholders with confirmed public URLs before submitting.
+- BLOCKER: Grok attachment acceptance in a signed-in browser has not been completed. See `docs/audit-2026-10-27.md`.
+- BLOCKER: Store screenshots still depict the earlier four-target UI. Refresh them before publishing 0.2.0.
 
 ## Package
 
-- Exact package path: `C:\Users\柳皓文\OneDrive\Documents\without paste picture\release\ai-screenshot-attacher-v0.1.0.zip`
-- Version: `0.1.0`
+- Package path (relative to the checkout): `release/ai-screenshot-attacher-v0.2.0.zip`
+- Version: `0.2.0`
 - Minimum browser engine version: Chromium 109-compatible Microsoft Edge.
 - Manifest source: `manifest.json`
 - Submission action: Do not submit from this packet automatically.
@@ -21,13 +22,13 @@ Status: blocked until the public URL fields below resolve successfully.
 - Short name: AI Attacher
 - Category: Productivity
 - Language: English, with Chinese in-extension UI and bilingual README.
-- Short description: Attach clipboard screenshots to ChatGPT, Claude, Gemini, or Doubao after your action. It never sends messages automatically.
+- Short description: Attach clipboard screenshots to ChatGPT, Claude, Gemini, Doubao, or Grok. Never sends messages automatically.
 
 Detailed description:
 
 AI Screenshot Attacher helps you move a screenshot from the system clipboard into an AI chat page with less manual work.
 
-Capture a screenshot, choose ChatGPT, Claude, Gemini, or Doubao, and the extension attaches the image to the target input area. You still review the attachment, write your prompt, and send the message yourself.
+Capture a screenshot, choose ChatGPT, Claude, Gemini, Doubao, or Grok, and the extension attaches the image to the target input area. You still review the attachment, write your prompt, and send the message yourself.
 
 Privacy boundaries:
 
@@ -43,6 +44,7 @@ Supported targets:
 - Claude
 - Gemini
 - Doubao
+- Grok (`grok.com`; signed-in upload required)
 
 Known limits:
 
@@ -59,7 +61,7 @@ Known limits:
 
 Source: `docs/chrome-web-store-listing.md` and `docs/public-site-validation.md`.
 
-Reachability status as of 2026-07-10: BLOCKER until these URLs return successful public responses.
+Reachability status as of 2026-10-27: BLOCKER until these URLs return successful public responses.
 
 ## Screenshot File List
 
@@ -82,7 +84,7 @@ Upload only the promotional image slots accepted by the Microsoft Edge Add-ons d
 1. Load the extension package through the Edge extensions dashboard manually.
 2. Open the popup.
 3. Copy a screenshot to the system clipboard.
-4. Use the popup button for ChatGPT, Claude, Gemini, or Doubao, or use the default shortcuts for ChatGPT/Claude/Gemini.
+4. Use the popup button for ChatGPT, Claude, Gemini, Doubao, or Grok, or use the default shortcuts for ChatGPT/Claude/Gemini.
 5. Confirm the image appears in the target AI site's input attachment area.
 6. Confirm the extension does not send the AI message automatically.
 7. Test with text-only clipboard content and confirm the no-image message appears.
@@ -110,5 +112,6 @@ Host permissions are limited to:
 - `https://gemini.google.com/*`
 - `https://doubao.com/*`
 - `https://www.doubao.com/*`
+- `https://grok.com/*`
 
 They are needed to open, find, focus, and inject attachment logic only on the supported AI sites.

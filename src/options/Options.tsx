@@ -146,7 +146,7 @@ function Options() {
         <div className="info-grid">
           <p>插件不读取聊天记录，不保存截图历史，也不会自动发送消息。</p>
           <p>剪贴板权限用于读取截图、为手动 Gemini/豆包粘贴准备已捕获图片，以及在失败回退时写回截图。</p>
-          <p>站点权限只覆盖 ChatGPT、Claude、Gemini 和豆包。</p>
+          <p>站点权限只覆盖 ChatGPT、Claude、Gemini、豆包和 Grok。</p>
         </div>
         <div className="link-row">
           <button type="button" onClick={() => void openExternal(PRIVACY_URL)}>
