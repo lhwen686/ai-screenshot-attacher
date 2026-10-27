@@ -78,7 +78,8 @@ describe('command handler', () => {
       42,
       expect.objectContaining({
         settings: expect.objectContaining({ allowClipboardPaste: true })
-      })
+      }),
+      'manual'
     );
     expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: 'OK' });
   });
@@ -195,7 +196,8 @@ describe('command handler', () => {
     expect(mocks.executeAttachRuntime).toHaveBeenNthCalledWith(
       2,
       42,
-      expect.objectContaining({ image: secondImage, targetId: 'claude' })
+      expect.objectContaining({ image: secondImage, targetId: 'claude' }),
+      'manual'
     );
   });
 

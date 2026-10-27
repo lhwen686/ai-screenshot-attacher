@@ -25,6 +25,7 @@ const TAB_NAVIGATION_TIMEOUT_MS = 15000;
 const SCRIPT_EXECUTION_TIMEOUT_MS = 30000;
 const SCRIPT_INJECTION_RETRY_INTERVAL_MS = 100;
 const ACTIVE_TAB_RESERVATION_TTL_MS = 120000;
+const RECENT_ATTACHMENT_WINDOW_MS = 10000;
 const TARGET_WINDOW_TYPES = ['normal', 'popup', 'app'] as const;
 const targetTabAcquisitions = new Map<TargetId, Promise<chrome.tabs.Tab>>();
 const activeTargetTabReservations = new Map<number, { targetId: TargetId; expiresAt: number }>();
@@ -33,8 +34,13 @@ const uncertainTabNavigations = new Map<number, Promise<void>>();
 const uncertainTabMutations = new Map<number, Promise<void>>();
 const attachRuntimeQueues = new Map<number, Promise<void>>();
 const pendingAttachOperations = new Map<number, Map<string, Promise<AttachResult>>>();
+const recentAttachments = new Map<
+  number,
+  { operationKey: string; trigger: AttachTrigger; result: AttachResult; expiresAt: number }
+>();
 const runWithActiveTabReuseAcquisition = createSerialQueue();
 type ScriptExecutionWorld = 'ISOLATED' | 'MAIN';
+export type AttachTrigger = 'manual' | 'auto';
 
 /** Serializable Gemini selectors handed to the self-contained real-paste function as a script argument. */
 interface GeminiRealPasteDom {
@@ -332,7 +338,11 @@ function scoreCandidate(tab: chrome.tabs.Tab, chromeWindow: chrome.windows.Windo
   return score;
 }
 
-export function executeAttachRuntime(tabId: number, payload: AttachRuntimePayload): Promise<AttachResult> {
+export function executeAttachRuntime(
+  tabId: number,
+  payload: AttachRuntimePayload,
+  trigger?: AttachTrigger
+): Promise<AttachResult> {
   const uncertainResult = getUncertainTabMutationResult(tabId);
   if (uncertainResult) {
     return Promise.resolve(uncertainResult);
@@ -343,6 +353,11 @@ export function executeAttachRuntime(tabId: number, payload: AttachRuntimePayloa
   const existingOperation = pendingForTab.get(operationKey);
   if (existingOperation) {
     return existingOperation;
+  }
+
+  const recentResult = getRecentCrossTriggerResult(tabId, operationKey, trigger);
+  if (recentResult) {
+    return Promise.resolve(recentResult);
   }
 
   if (!acquireBusyTabTarget(tabId, payload.targetId)) {
@@ -361,7 +376,7 @@ export function executeAttachRuntime(tabId: number, payload: AttachRuntimePayloa
     () => undefined
   );
   attachRuntimeQueues.set(tabId, tail);
-  const trackedOperation = operation.finally(() => {
+  const finishOperation = () => {
     releaseBusyTabTarget(tabId, payload.targetId);
     releaseTargetTabReservation(tabId, payload.targetId);
     pendingForTab.delete(operationKey);
@@ -372,11 +387,69 @@ export function executeAttachRuntime(tabId: number, payload: AttachRuntimePayloa
     if (attachRuntimeQueues.get(tabId) === tail) {
       attachRuntimeQueues.delete(tabId);
     }
-  });
+  };
+  const trackedOperation = operation.then(
+    (result) => {
+      finishOperation();
+      rememberRecentAttachment(tabId, operationKey, trigger, result);
+      return result;
+    },
+    (error: unknown) => {
+      finishOperation();
+      throw error;
+    }
+  );
   pendingForTab.set(operationKey, trackedOperation);
   pendingAttachOperations.set(tabId, pendingForTab);
 
   return trackedOperation;
+}
+
+/**
+ * A screenshot attached by one trigger is not attached again by the other trigger on the same tab shortly after:
+ * automatic mode detects a screenshot about a second after it is copied, often just after a manual shortcut for the
+ * same image has finished, and vice versa. Repeats from the same manual trigger stay deliberate and are allowed.
+ */
+function getRecentCrossTriggerResult(
+  tabId: number,
+  operationKey: string,
+  trigger: AttachTrigger | undefined
+): AttachResult | undefined {
+  const recent = recentAttachments.get(tabId);
+  if (!recent || !trigger) {
+    return undefined;
+  }
+  if (recent.expiresAt <= Date.now()) {
+    recentAttachments.delete(tabId);
+    return undefined;
+  }
+  if (recent.operationKey !== operationKey || recent.trigger === trigger) {
+    return undefined;
+  }
+
+  return trigger === 'auto'
+    ? { ok: false, method: recent.result.method, outcome: 'unknown', error: 'RECENTLY_ATTACHED' }
+    : recent.result;
+}
+
+function rememberRecentAttachment(
+  tabId: number,
+  operationKey: string,
+  trigger: AttachTrigger | undefined,
+  result: AttachResult
+): void {
+  if (!trigger || !(result.ok || result.outcome === 'unknown')) {
+    return;
+  }
+
+  const record = { operationKey, trigger, result, expiresAt: Date.now() + RECENT_ATTACHMENT_WINDOW_MS };
+  recentAttachments.set(tabId, record);
+  // The key embeds the screenshot, so do not keep it after the window has passed.
+  globalThis.setTimeout(() => {
+    if (recentAttachments.get(tabId) === record) {
+      recentAttachments.delete(tabId);
+    }
+  }, RECENT_ATTACHMENT_WINDOW_MS);
 }
 
 async function executeAttachRuntimeUnlocked(tabId: number, payload: AttachRuntimePayload): Promise<AttachResult> {

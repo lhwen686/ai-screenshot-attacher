@@ -243,16 +243,27 @@ async function attachAutoClipboardImage(
   }
 
   const target = AI_TARGETS[selection.targetId];
-  const attachResult = await executeAttachRuntime(selection.tab.id, {
-    targetId: selection.targetId,
-    image,
-    settings: {
-      allowClipboardPaste: false,
-      showPageToast: settings.showPageToast,
-      writeBackOnFailure: settings.writeBackOnFailure,
-      debugLogs: settings.debugLogs
-    }
-  });
+  logger.debug('automatic attach started', { deliveryId, targetId: selection.targetId, tabId: selection.tab.id });
+  const attachResult = await executeAttachRuntime(
+    selection.tab.id,
+    {
+      targetId: selection.targetId,
+      image,
+      settings: {
+        allowClipboardPaste: false,
+        showPageToast: settings.showPageToast,
+        writeBackOnFailure: settings.writeBackOnFailure,
+        debugLogs: settings.debugLogs
+      }
+    },
+    'auto'
+  );
+
+  if (attachResult.error === 'RECENTLY_ATTACHED') {
+    logger.debug('automatic attach skipped: a manual trigger just attached this screenshot', { deliveryId });
+    await markAutoImageHandled(deliveryId, fingerprint);
+    return;
+  }
 
   if (attachResult.ok) {
     await markAutoImageHandled(deliveryId, fingerprint);

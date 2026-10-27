@@ -119,16 +119,20 @@ async function attachToTargetUnlocked(prepared: PreparedManualAttach): Promise<O
       throw new Error('TARGET_TAB_FAILED');
     }
 
-    const attachResult = await executeAttachRuntime(tabId, {
-      targetId: finalTargetId,
-      image: clipboardResult.image,
-      settings: {
-        allowClipboardPaste: true,
-        showPageToast: settings.showPageToast,
-        writeBackOnFailure: settings.writeBackOnFailure,
-        debugLogs: settings.debugLogs
-      }
-    });
+    const attachResult = await executeAttachRuntime(
+      tabId,
+      {
+        targetId: finalTargetId,
+        image: clipboardResult.image,
+        settings: {
+          allowClipboardPaste: true,
+          showPageToast: settings.showPageToast,
+          writeBackOnFailure: settings.writeBackOnFailure,
+          debugLogs: settings.debugLogs
+        }
+      },
+      'manual'
+    );
 
     if (attachResult.ok) {
       const result: OperationResult = {

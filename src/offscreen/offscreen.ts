@@ -42,9 +42,11 @@ let clipboardWritesInFlight = 0;
 let persistedMonitorBaselineKnown = false;
 let persistedMonitorBaselineFingerprint: string | undefined;
 let persistedMonitorBaselineAt = 0;
-let monitorImageCache: { bytes: Uint8Array; image: ClipboardImagePayload; fingerprint: string } | undefined;
+let monitorImageCache:
+  { bytes: Uint8Array; image: ClipboardImagePayload; fingerprint: string; pixelHash?: string } | undefined;
+let lastMonitorPixelHash: string | undefined;
 
-type MonitorReadResult = ClipboardReadResult & { fingerprint?: string };
+type MonitorReadResult = ClipboardReadResult & { fingerprint?: string; pixelHash?: string };
 type ClipboardBlobConverter = (blob: Blob, type: SupportedClipboardImageType) => Promise<MonitorReadResult>;
 
 chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sender, sendResponse) => {
@@ -160,6 +162,7 @@ async function writeClipboardImageInDocument(image: ClipboardImagePayload): Prom
     finalized = true;
     if (writeSucceeded) {
       lastMonitorFingerprint = fingerprint;
+      lastMonitorPixelHash = undefined;
       // Chrome may re-encode images written through the async clipboard API, so the bytes read back can differ
       // from the written payload. The next successful read becomes the baseline instead of a new screenshot.
       monitorBaselinePending = true;
@@ -236,6 +239,7 @@ async function startAutoMonitor(
   const writeGeneration = clipboardWriteGeneration;
   if (resumeBaseline !== undefined) {
     lastMonitorFingerprint = resumeBaseline.fingerprint;
+    lastMonitorPixelHash = undefined;
     monitorBaselinePending = false;
     pendingDelivery = undefined;
     persistedMonitorBaselineKnown = true;
@@ -269,6 +273,7 @@ async function startAutoMonitor(
           clipboardWritesInFlight === 0
         ) {
           lastMonitorFingerprint = fingerprint;
+          lastMonitorPixelHash = initialResult.ok ? initialResult.pixelHash : undefined;
           monitorBaselinePending = false;
           pendingDelivery = undefined;
           persistMonitorBaselineFingerprint(fingerprint);
@@ -308,6 +313,7 @@ async function stopAutoMonitor(): Promise<OffscreenMonitorResult> {
 
   monitorPollInFlight = false;
   lastMonitorFingerprint = undefined;
+  lastMonitorPixelHash = undefined;
   monitorBaselinePending = true;
   lastSentFingerprint = undefined;
   lastSentAt = 0;
@@ -332,7 +338,7 @@ async function convertClipboardBlobForMonitor(
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const cached = monitorImageCache;
   if (cached && haveSameBytes(cached.bytes, bytes)) {
-    return { ok: true, image: cached.image, fingerprint: cached.fingerprint };
+    return { ok: true, image: cached.image, fingerprint: cached.fingerprint, pixelHash: cached.pixelHash };
   }
 
   const result = await blobToClipboardPayload(blob, sourceType);
@@ -340,8 +346,9 @@ async function convertClipboardBlobForMonitor(
     return result;
   }
   const fingerprint = await createImageFingerprint(result.image);
-  monitorImageCache = { bytes, image: result.image, fingerprint };
-  return { ...result, fingerprint };
+  const pixelHash = await createPixelHash(blob);
+  monitorImageCache = { bytes, image: result.image, fingerprint, pixelHash };
+  return { ...result, fingerprint, pixelHash };
 }
 
 function haveSameBytes(left: Uint8Array, right: Uint8Array): boolean {
@@ -377,6 +384,7 @@ async function pollClipboardForNewImage(generation: number): Promise<void> {
     if (!result.ok) {
       if (result.error === 'NO_IMAGE_IN_CLIPBOARD' || result.error === 'UNSUPPORTED_IMAGE_TYPE') {
         lastMonitorFingerprint = undefined;
+        lastMonitorPixelHash = undefined;
         monitorBaselinePending = false;
         pendingDelivery = undefined;
         persistMonitorBaselineFingerprint(undefined);
@@ -392,6 +400,7 @@ async function pollClipboardForNewImage(generation: number): Promise<void> {
     if (monitorBaselinePending) {
       consumeSuppressedWriteFingerprint(fingerprint);
       lastMonitorFingerprint = fingerprint;
+      lastMonitorPixelHash = result.pixelHash;
       monitorBaselinePending = false;
       pendingDelivery = undefined;
       persistMonitorBaselineFingerprint(fingerprint);
@@ -400,6 +409,7 @@ async function pollClipboardForNewImage(generation: number): Promise<void> {
 
     if (consumeSuppressedWriteFingerprint(fingerprint)) {
       lastMonitorFingerprint = fingerprint;
+      lastMonitorPixelHash = result.pixelHash;
       pendingDelivery = undefined;
       persistMonitorBaselineFingerprint(fingerprint);
       return;
@@ -410,8 +420,18 @@ async function pollClipboardForNewImage(generation: number): Promise<void> {
       return;
     }
 
+    // If another app re-copies the same picture, or a different clipboard read path encodes it differently, its bytes
+    // change but its pixels do not. That is not a new screenshot.
+    if (result.pixelHash !== undefined && result.pixelHash === lastMonitorPixelHash) {
+      lastMonitorFingerprint = fingerprint;
+      pendingDelivery = undefined;
+      persistMonitorBaselineFingerprint(fingerprint);
+      return;
+    }
+
     if (isRecentlySent(fingerprint)) {
       lastMonitorFingerprint = fingerprint;
+      lastMonitorPixelHash = result.pixelHash;
       pendingDelivery = undefined;
       persistMonitorBaselineFingerprint(fingerprint);
       return;
@@ -438,6 +458,7 @@ async function pollClipboardForNewImage(generation: number): Promise<void> {
       }
       if (generation === monitorGeneration) {
         lastMonitorFingerprint = fingerprint;
+        lastMonitorPixelHash = result.pixelHash;
         lastSentFingerprint = fingerprint;
         lastSentAt = Date.now();
         pendingDelivery = undefined;
@@ -512,7 +533,36 @@ function persistMonitorBaselineFingerprint(fingerprint: string | undefined): voi
 
 async function createImageFingerprint(image: ClipboardImagePayload): Promise<string> {
   const bytes = new TextEncoder().encode(`${image.mimeType}:${image.size}:${image.dataUrl}`);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return toHex(await crypto.subtle.digest('SHA-256', bytes));
+}
+
+/**
+ * Hashes the decoded pixels so the monitor can recognize the same picture after it was re-encoded. Returns undefined
+ * when this document cannot decode the image; the monitor then compares encoded bytes only.
+ */
+async function createPixelHash(blob: Blob): Promise<string | undefined> {
+  try {
+    const bitmap = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) {
+        return undefined;
+      }
+      context.drawImage(bitmap, 0, 0);
+      const pixels = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+      return `${bitmap.width}x${bitmap.height}:${toHex(await crypto.subtle.digest('SHA-256', pixels))}`;
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    return undefined;
+  }
+}
+
+function toHex(digest: ArrayBuffer): string {
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('');

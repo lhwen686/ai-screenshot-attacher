@@ -1310,6 +1310,74 @@ describe('target tab selection', () => {
   });
 });
 
+describe('cross-trigger duplicate guard', () => {
+  beforeEach(() => {
+    vi.mocked(chrome.scripting.executeScript).mockImplementation(async (details) => {
+      const injection = details as unknown as { func?: (...args: unknown[]) => unknown };
+      return injection.func
+        ? ([{ frameId: 0, result: { ok: true, method: 'paste-event', outcome: 'confirmed' } }] as never)
+        : [];
+    });
+  });
+
+  function mockChatGptTab(id: number) {
+    vi.mocked(chrome.tabs.get).mockResolvedValue({
+      id,
+      windowId: 1,
+      status: 'complete',
+      url: 'https://chatgpt.com/'
+    } as chrome.tabs.Tab);
+  }
+
+  function runtimeCalls() {
+    return vi.mocked(chrome.scripting.executeScript).mock.calls.filter(([details]) => 'func' in details).length;
+  }
+
+  function automatic(payload: AttachRuntimePayload): AttachRuntimePayload {
+    return { ...payload, settings: { ...payload.settings, allowClipboardPaste: false } };
+  }
+
+  it('does not let automatic mode attach a screenshot that a manual trigger just attached', async () => {
+    mockChatGptTab(61);
+    const payload = createChatGptPayload('data:image/png;base64,bWFudWFs');
+
+    await expect(executeAttachRuntime(61, payload, 'manual')).resolves.toMatchObject({ ok: true });
+    await expect(executeAttachRuntime(61, automatic(payload), 'auto')).resolves.toMatchObject({
+      ok: false,
+      outcome: 'unknown',
+      error: 'RECENTLY_ATTACHED'
+    });
+    expect(runtimeCalls()).toBe(1);
+  });
+
+  it('answers a manual trigger with the automatic result when automatic mode just attached the same screenshot', async () => {
+    mockChatGptTab(62);
+    const payload = createChatGptPayload('data:image/png;base64,YXV0bw==');
+
+    await executeAttachRuntime(62, automatic(payload), 'auto');
+    await expect(executeAttachRuntime(62, payload, 'manual')).resolves.toMatchObject({
+      ok: true,
+      method: 'paste-event',
+      outcome: 'confirmed'
+    });
+    expect(runtimeCalls()).toBe(1);
+  });
+
+  it('still allows a deliberate manual repeat, and cross-trigger attachments after ten seconds', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    mockChatGptTab(63);
+    const payload = createChatGptPayload('data:image/png;base64,cmVwZWF0');
+
+    await executeAttachRuntime(63, payload, 'manual');
+    await executeAttachRuntime(63, payload, 'manual');
+    expect(runtimeCalls()).toBe(2);
+
+    vi.setSystemTime(Date.now() + 10001);
+    await expect(executeAttachRuntime(63, automatic(payload), 'auto')).resolves.toMatchObject({ ok: true });
+    expect(runtimeCalls()).toBe(3);
+  });
+});
+
 function createGeminiPayload(): AttachRuntimePayload {
   return {
     targetId: 'gemini',

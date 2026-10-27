@@ -41,6 +41,7 @@ For public promotion or store submission, also review `PRIVACY.md`, `docs/chrome
 - After that operation completes, repeat deliberately with the same image: a second attachment is allowed.
 - Disable automatic mode while target selection is pending: the pending selection must not start an attachment. Browser operations already dispatched cannot be revoked.
 - Close the target tab while it is still loading after a shortcut: the popup reports a failure promptly instead of waiting about 15 seconds.
+- With automatic mode on and a supported page focused, take a screenshot and press the shortcut within a second or two: exactly one attachment appears. Repeat, pressing the shortcut a few seconds after the automatic attachment: still one attachment.
 - Signed in to ChatGPT and Gemini, attach once to each: the result is the success message, not "could not confirm the result". Both sites served new composer markup to signed-out visitors on 2026-10-27 (see the audit).
 
 ## Grok Acceptance

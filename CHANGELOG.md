@@ -12,6 +12,7 @@ All notable project changes should be recorded here.
 - Made the Chrome 109 build target explicit and replaced deprecated single-bundle build options.
 - Added target/manifest consistency tests and CI checks for package resources, public assets, and dependency advisories. Prepared version 0.2.0 without publishing a release.
 - ChatGPT: recognized the form-based `#mobile-composer-prompt` composer that chatgpt.com served signed-out visitors on 2026-10-27.
+- Fixed occasional duplicate attachments. When a manual trigger and automatic mode handle the same screenshot for the same tab within 10 seconds, the second one no longer attaches it again; deliberate manual repeats are still allowed. Automatic mode also compares decoded pixels, so the same picture returning to the clipboard with different bytes is not treated as a new screenshot.
 - ChatGPT: observe the whole composer form once a composer is found. Signed-in chatgpt.com dropped `#prompt-textarea` and the `unified-composer` form type and renders previews beside the inner composer wrapper, so successful attachments were reported as unconfirmed. Also recognize the new `移除“…”` remove-button label.
 - Gemini: treated `input-area-v2` as the composer root when the older `bard-text-input` wrapper is missing, so attachments rendered outside `rich-textarea` are confirmed instead of reported as unconfirmed.
 - Gemini selectors now live in one module; the injected real-paste function receives them as script arguments instead of keeping its own copy.
