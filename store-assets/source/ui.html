@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Extension UI</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      // Renders the real popup or settings page with demo data, then exposes a capture for render.html.
+      import { toPng } from 'html-to-image';
+      import { installChromeStub } from './chrome-stub.js';
+      import { allowRenderingWithoutPaint } from './no-paint.js';
+
+      allowRenderingWithoutPaint();
+      const params = new URLSearchParams(location.search);
+      const page = params.get('page') === 'options' ? 'options' : 'popup';
+      await installChromeStub(params);
+      await import(page === 'options' ? '/src/options/Options.tsx' : '/src/popup/Popup.tsx');
+
+      const readySelector = page === 'options' ? '.settings-section' : '.primary-button:not([disabled])';
+      for (let attempt = 0; attempt < 200 && !document.querySelector(readySelector); attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      await document.fonts.ready;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // Regions let render.js point callouts at parts of the real UI.
+      const regionSelectors = {
+        defaultTarget: '.default-target',
+        autoStatus: '.auto-status',
+        primary: '.primary-button',
+        quick: '.quick-grid',
+        result: '.result-panel',
+        autoToggle: '.settings-section .toggle-row'
+      };
+      window.captureUi = async () => {
+        const width = document.body.scrollWidth;
+        const height = document.body.scrollHeight;
+        const regions = {};
+        for (const [name, selector] of Object.entries(regionSelectors)) {
+          const element = document.querySelector(selector);
+          if (element) {
+            const rect = element.getBoundingClientRect();
+            regions[name] = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+          }
+        }
+        const src = await toPng(document.body, {
+          pixelRatio: 2,
+          width,
+          height,
+          backgroundColor: '#f7f8fb',
+          skipFonts: true
+        });
+        return { src, width, height, regions };
+      };
+      window.uiReady = true;
+    </script>
+  </body>
+</html>

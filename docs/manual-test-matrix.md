@@ -29,6 +29,7 @@ For public promotion or store submission, also review `PRIVACY.md`, `docs/chrome
 - Debug logs do not include image binary data, base64 data, or chat content.
 - Popup feedback/privacy links open the public GitHub issue and privacy-policy pages.
 - Options page explains first use, privacy boundaries, shortcut management, and feedback.
+- With the browser language set to English, then to Chinese (Simplified): the extension name, popup, settings page, page notices, and the shortcut descriptions at `chrome://extensions/shortcuts` all follow it. Other languages fall back to English.
 
 ## Regression Scenarios For The Attachment Pipeline Optimization
 

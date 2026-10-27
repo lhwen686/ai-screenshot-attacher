@@ -1,5 +1,7 @@
 # Promotion Implementation Handoff
 
+> Superseded for store images: the Chrome Web Store assets were rebuilt in English and Simplified Chinese on 2026-10-27. See `store-assets/source/README.md` and `docs/store-asset-validation.md`. The rest of this document is the May 2026 record.
+
 ## Purpose
 
 This document summarizes the promotion-readiness implementation performed on 2026-05-20 for AI Screenshot Attacher. It is written for a future LLM or coding agent that needs to understand what changed, what was validated, what remains manual, and how to roll back safely.

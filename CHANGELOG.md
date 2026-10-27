@@ -4,6 +4,10 @@ All notable project changes should be recorded here.
 
 ## Unreleased
 
+- Localized the extension in English and Simplified Chinese: the name, summary, shortcut descriptions, popup, settings page, notices, and status messages follow the browser language (`public/_locales`, default `en`). The package validator checks that every locale has the same messages.
+- Rebuilt the Chrome Web Store images in both languages from the real popup and settings page: five screenshots, the small promo tile, and the marquee, all 24-bit PNG without alpha as the store requires. Added a 300×300 Edge logo and the render pipeline in `store-assets/source`.
+- Rewrote `docs/chrome-web-store-listing.md` as a field-by-field listing kit (English and Chinese descriptions, permission justifications, data-use disclosure, distribution, reviewer test steps).
+- Refreshed the public website with the new screenshots and the extension icon.
 - Added Grok (`grok.com`) as a target in adapters, popup, settings, commands, and automatic routing, with a scoped composer fixture and regression coverage. Signed-in upload acceptance is pending.
 - Coalesced overlapping manual triggers for the same captured image and target while allowing a deliberate repeat after completion.
 - Invalidated automatic deliveries still awaiting target selection when the monitor stops.

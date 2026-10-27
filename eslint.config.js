@@ -38,10 +38,19 @@ export default tseslint.config(
     }
   },
   {
-    files: ['*.config.js', 'eslint.config.js', 'scripts/**/*.mjs'],
+    files: ['*.config.js', 'eslint.config.js', 'scripts/**/*.mjs', 'store-assets/source/**/*.mjs'],
     languageOptions: {
       globals: {
         ...globals.node,
+        ...globals.es2022
+      }
+    }
+  },
+  {
+    files: ['store-assets/source/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
         ...globals.es2022
       }
     }

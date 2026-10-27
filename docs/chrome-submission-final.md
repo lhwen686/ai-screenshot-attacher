@@ -5,50 +5,24 @@ Status: 0.2.0 candidate; blocked on finishing signed-in acceptance.
 ## Submission Blockers
 
 - BLOCKER: Signed-in acceptance passed for Grok (popup button and default shortcut), Gemini, and ChatGPT (re-tested after the composer-scope fix). Run the remaining Grok items (automatic mode, repeated trigger, signed-out failure) before submitting. See `docs/audit-2026-10-27.md`.
+- Merge the 0.2.0 branch into `main` first: the public website and privacy policy are published from `main:/docs`.
+
+## Where Everything Is
+
+| Item                                                              | Location                                                                       |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Text for every dashboard field, in English and Simplified Chinese | `docs/chrome-web-store-listing.md`                                             |
+| Package                                                           | `release/ai-screenshot-attacher-v0.2.0.zip` (`npm run package`)                |
+| Store icon                                                        | `store-assets/chrome-web-store/icon-128.png`                                   |
+| Screenshots and promo tiles                                       | `store-assets/chrome-web-store/en/` and `store-assets/chrome-web-store/zh_CN/` |
+| Permission audit with code references                             | `marketing/store-listing/permission-justifications.md`                         |
+| Image sources and how to regenerate them                          | `store-assets/source/README.md`                                                |
 
 ## Package
 
-- Package path (relative to the checkout): `release/ai-screenshot-attacher-v0.2.0.zip`
-- Version: `0.2.0`
-- Minimum browser version: Chrome 109.
-- Manifest source: `manifest.json`
+- Version: `0.2.0`; minimum Chrome version 109.
+- Localized name and summary come from `public/_locales/en` (default) and `public/_locales/zh_CN`, so the dashboard shows an English and a Simplified Chinese listing.
 - Submission action: Do not submit from this packet automatically.
-
-## Listing Text
-
-- Name: AI Screenshot Attacher
-- Short name: AI Attacher
-- Category: Productivity
-- Language: English, with Chinese in-extension UI and bilingual README.
-- Short description: Attach clipboard screenshots to ChatGPT, Claude, Gemini, Doubao, or Grok. Never sends messages automatically.
-
-Detailed description:
-
-AI Screenshot Attacher helps you move a screenshot from the system clipboard into an AI chat page with less manual work.
-
-Capture a screenshot, choose ChatGPT, Claude, Gemini, Doubao, or Grok, and the extension attaches the image to the target input area. You still review the attachment, write your prompt, and send the message yourself.
-
-Privacy boundaries:
-
-- No automatic message sending.
-- No chat history reads.
-- No screenshot history.
-- No extension-author server upload.
-- Automatic mode is off by default and only runs while a supported AI page is already open.
-
-Supported targets:
-
-- ChatGPT
-- Claude
-- Gemini
-- Doubao
-- Grok (`grok.com`; signed-in upload required)
-
-Known limits:
-
-- AI websites change their frontends frequently, so attachment behavior may need adapter updates.
-- Some websites may reject synthetic paste or drop events. When this happens, the extension keeps the screenshot available for manual paste and focuses the input where possible.
-- The extension does not bypass login, account checks, cookies, or target-site upload limits.
 
 ## Public URL Fields
 
@@ -57,57 +31,6 @@ Known limits:
 - Support URL: `https://lhw686.me/ai-screenshot-attacher/support/`
 - FAQ URL: `https://lhw686.me/ai-screenshot-attacher/faq/`
 
-Source: `docs/chrome-web-store-listing.md` and `docs/public-site-validation.md`.
-
 Reachability status as of 2026-10-27: all four URLs return `200` over HTTPS. GitHub Pages publishes `main:/docs`, so merge the 0.2.0 branch before submitting; until then the site lists four targets.
 
-## Screenshot File List
-
-- `store-assets/chrome-web-store/screenshot-workflow-1280x800.png`
-- `store-assets/chrome-web-store/screenshot-settings-1280x800.png`
-- `store-assets/chrome-web-store/screenshot-privacy-1280x800.png`
-- `store-assets/chrome-web-store/screenshot-shortcuts-1280x800.png`
-- `store-assets/chrome-web-store/screenshot-fallback-1280x800.png`
-
-## Promo Image File List
-
-- `store-assets/chrome-web-store/icon-128.png`
-- `store-assets/chrome-web-store/small-promo-440x280.png`
-- `store-assets/chrome-web-store/marquee-promo-1400x560.png`
-
-## Reviewer Test Notes
-
-1. Load the extension package through the browser extension dashboard manually.
-2. Open the popup.
-3. Copy a screenshot to the system clipboard.
-4. Use the popup button for ChatGPT, Claude, Gemini, Doubao, or Grok, or use the default shortcuts for ChatGPT/Claude/Gemini.
-5. Confirm the image appears in the target AI site's input attachment area.
-6. Confirm the extension does not send the AI message automatically.
-7. Test with text-only clipboard content and confirm the no-image message appears.
-8. Enable automatic mode, keep a supported AI page open, copy a fresh screenshot, and confirm the extension only attaches to an already open supported page.
-9. Test a failed attachment path and confirm the screenshot remains available for manual paste when fallback write-back is enabled.
-
 Do not test by launching Chrome with extension command-line flags. Load the unpacked `dist/` folder manually through the browser extensions page if manual unpacked testing is needed.
-
-## Permission Justifications
-
-Full audit source: `marketing/store-listing/permission-justifications.md`
-
-- `clipboardRead`: reads the clipboard screenshot after user action or while automatic mode is enabled.
-- `clipboardWrite`: prepares the captured image immediately before a user-triggered Gemini/Doubao browser paste, and restores it after a failed attachment when fallback is enabled. Automatic mode does not use real clipboard paste.
-- `tabs`: opens, finds, focuses, and monitors supported AI pages; also opens user-requested help/privacy/support links.
-- `activeTab`: supports user-invoked page feedback on the current HTTP(S) tab.
-- `scripting`: injects the target-site attachment runtime and shows page feedback.
-- `storage`: saves settings, latest operation result, and automatic-mode duplicate-suppression state.
-- `offscreen`: performs Manifest V3 clipboard access from an offscreen document.
-
-Host permissions are limited to:
-
-- `https://chatgpt.com/*`
-- `https://claude.ai/*`
-- `https://gemini.google.com/*`
-- `https://doubao.com/*`
-- `https://www.doubao.com/*`
-- `https://grok.com/*`
-
-They are needed to open, find, focus, and inject attachment logic only on the supported AI sites.
