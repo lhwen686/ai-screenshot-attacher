@@ -1,0 +1,390 @@
+{
+  "extName": {
+    "message": "AI Screenshot Attacher",
+    "description": "Extension name shown in Chrome and the Chrome Web Store. 75 characters at most."
+  },
+  "extShortName": {
+    "message": "AI Attacher",
+    "description": "Short extension name. 12 characters at most."
+  },
+  "extDescription": {
+    "message": "Attach clipboard screenshots to ChatGPT, Claude, Gemini, Doubao, or Grok in one step. Never sends messages for you.",
+    "description": "Extension summary shown in Chrome and the Chrome Web Store. 132 characters at most."
+  },
+  "localeTag": {
+    "message": "en",
+    "description": "BCP 47 language tag of this translation, used for the HTML lang attribute."
+  },
+  "optionsDocumentTitle": {
+    "message": "AI Screenshot Attacher Settings",
+    "description": "Browser tab title of the settings page."
+  },
+  "commandAttachDefault": {
+    "message": "Attach clipboard screenshot to the default AI",
+    "description": "Keyboard shortcut description."
+  },
+  "commandAttachChatgpt": {
+    "message": "Attach clipboard screenshot to ChatGPT",
+    "description": "Keyboard shortcut description."
+  },
+  "commandAttachClaude": {
+    "message": "Attach clipboard screenshot to Claude",
+    "description": "Keyboard shortcut description."
+  },
+  "commandAttachGemini": {
+    "message": "Attach clipboard screenshot to Gemini",
+    "description": "Keyboard shortcut description."
+  },
+  "commandAttachDoubao": {
+    "message": "Attach clipboard screenshot to Doubao",
+    "description": "Keyboard shortcut description."
+  },
+  "commandAttachGrok": {
+    "message": "Attach clipboard screenshot to Grok",
+    "description": "Keyboard shortcut description."
+  },
+  "targetChatgpt": {
+    "message": "ChatGPT",
+    "description": "Display name of the ChatGPT target."
+  },
+  "targetClaude": {
+    "message": "Claude",
+    "description": "Display name of the Claude target."
+  },
+  "targetGemini": {
+    "message": "Gemini",
+    "description": "Display name of the Gemini target."
+  },
+  "targetDoubao": {
+    "message": "Doubao",
+    "description": "Display name of the Doubao target."
+  },
+  "targetGrok": {
+    "message": "Grok",
+    "description": "Display name of the Grok target."
+  },
+  "noClipboardImage": {
+    "message": "No image on the clipboard. Take a screenshot first, then try again.",
+    "description": "Shown when the clipboard holds no image."
+  },
+  "attachSuccess": {
+    "message": "Screenshot attached. Type your question and send it yourself.",
+    "description": "Shown after an attachment is confirmed."
+  },
+  "attachUnconfirmed": {
+    "message": "The attach action ran, but the result could not be confirmed. Check the input box first; paste with Ctrl+V / Cmd+V only if no image is there.",
+    "description": "Shown when the page may already hold the screenshot."
+  },
+  "attachFallback": {
+    "message": "Automatic attach failed. The screenshot is still on the clipboard; paste it with Ctrl+V / Cmd+V.",
+    "description": "Shown when attaching failed and the screenshot was put back on the clipboard."
+  },
+  "attachFallbackNoWrite": {
+    "message": "Automatic attach failed. Paste the screenshot with Ctrl+V / Cmd+V.",
+    "description": "Shown when attaching failed and writing back to the clipboard is turned off."
+  },
+  "attachFallbackWriteFailed": {
+    "message": "Automatic attach failed. Paste with Ctrl+V / Cmd+V. Putting the screenshot back on the clipboard failed, but the clipboard usually still holds it.",
+    "description": "Shown when attaching failed and writing the screenshot back to the clipboard also failed."
+  },
+  "targetLoadFailed": {
+    "message": "The AI page failed to load. Open the page and try again.",
+    "description": "Shown when the target page does not load."
+  },
+  "serviceUnavailable": {
+    "message": "The extension's background service is unavailable. Try again in a moment.",
+    "description": "Shown when the service worker does not respond."
+  },
+  "autoMonitorEnabled": {
+    "message": "Automatic mode is on.",
+    "description": "Automatic mode status."
+  },
+  "autoMonitorDisabled": {
+    "message": "Automatic mode is off.",
+    "description": "Automatic mode status."
+  },
+  "autoMonitorRecovering": {
+    "message": "Automatic mode is recovering. Please wait a moment.",
+    "description": "Automatic mode status while it restarts."
+  },
+  "autoMonitorUnavailable": {
+    "message": "Automatic mode is temporarily unavailable. Try again later.",
+    "description": "Automatic mode status when supported pages cannot be listed."
+  },
+  "autoMonitorWaiting": {
+    "message": "Automatic mode is on and waits for ChatGPT, Claude, Gemini, Doubao, or Grok to be open.",
+    "description": "Automatic mode status when no supported page is open."
+  },
+  "autoMonitorRunning": {
+    "message": "Automatic mode is running.",
+    "description": "Automatic mode status while it watches the clipboard."
+  },
+  "autoMonitorStartFailed": {
+    "message": "Automatic mode could not start: $REASON$",
+    "description": "Automatic mode status when the clipboard monitor fails to start.",
+    "placeholders": {
+      "reason": {
+        "content": "$1",
+        "example": "clipboard permission denied"
+      }
+    }
+  },
+  "errorNoPermission": {
+    "message": "Can't read the clipboard. Make sure the browser lets this extension access the clipboard.",
+    "description": "Clipboard permission error."
+  },
+  "errorUnsupportedImage": {
+    "message": "The clipboard has no usable PNG, JPEG, or WebP image.",
+    "description": "Unsupported clipboard image error."
+  },
+  "errorClipboardRead": {
+    "message": "Reading the clipboard failed. Take a new screenshot and try again.",
+    "description": "Clipboard read error."
+  },
+  "errorClipboardWrite": {
+    "message": "Putting the screenshot back on the clipboard failed. Take a new screenshot and paste it yourself.",
+    "description": "Clipboard write error."
+  },
+  "errorTargetTab": {
+    "message": "Couldn't open or switch to the AI page.",
+    "description": "Target tab error."
+  },
+  "errorTargetNotReady": {
+    "message": "The AI input box isn't ready yet.",
+    "description": "Target composer not ready error."
+  },
+  "errorAdapterNotFound": {
+    "message": "Attaching isn't supported on this AI page yet.",
+    "description": "No adapter for the page error."
+  },
+  "errorAutoAttach": {
+    "message": "Automatic attach failed.",
+    "description": "Generic attach failure."
+  },
+  "errorScriptInjection": {
+    "message": "Couldn't load the attach script into the AI page.",
+    "description": "Script injection error."
+  },
+  "errorUnknown": {
+    "message": "Something went wrong. Try again later.",
+    "description": "Unknown error."
+  },
+  "popupTitle": {
+    "message": "Attach a clipboard screenshot",
+    "description": "Popup heading."
+  },
+  "popupIntro": {
+    "message": "The screenshot goes into the AI input box. You still decide when to send.",
+    "description": "Popup introduction."
+  },
+  "popupDefaultTarget": {
+    "message": "Default AI",
+    "description": "Popup label for the default target."
+  },
+  "popupLoading": {
+    "message": "Loading...",
+    "description": "Popup placeholder while settings load."
+  },
+  "popupLoadFailed": {
+    "message": "Couldn't load",
+    "description": "Popup placeholder when settings fail to load."
+  },
+  "popupAutoMode": {
+    "message": "Automatic mode",
+    "description": "Popup label for automatic mode."
+  },
+  "popupAutoHint": {
+    "message": "Turn on automatic paste in Settings",
+    "description": "Popup hint when automatic mode status is unknown."
+  },
+  "popupAttaching": {
+    "message": "Attaching...",
+    "description": "Primary button text while attaching."
+  },
+  "popupAttachDefault": {
+    "message": "Attach to default AI ($TARGET$)",
+    "description": "Primary button text.",
+    "placeholders": {
+      "target": {
+        "content": "$1",
+        "example": "ChatGPT"
+      }
+    }
+  },
+  "popupDefaultLoadFailed": {
+    "message": "Couldn't load the default AI",
+    "description": "Primary button text when settings fail to load."
+  },
+  "popupDefaultLoading": {
+    "message": "Loading the default AI...",
+    "description": "Primary button text while settings load."
+  },
+  "popupQuickTargets": {
+    "message": "Quick targets",
+    "description": "Accessible label of the target button group."
+  },
+  "popupWorking": {
+    "message": "Working...",
+    "description": "Target button text while attaching."
+  },
+  "popupAttachTo": {
+    "message": "Attach to $TARGET$",
+    "description": "Target button text.",
+    "placeholders": {
+      "target": {
+        "content": "$1",
+        "example": "Claude"
+      }
+    }
+  },
+  "popupLastResult": {
+    "message": "Last result",
+    "description": "Popup label for the latest operation."
+  },
+  "popupNoHistory": {
+    "message": "Nothing yet",
+    "description": "Popup text before any operation."
+  },
+  "triggerAuto": {
+    "message": "Automatic",
+    "description": "How the latest operation was triggered."
+  },
+  "triggerManual": {
+    "message": "Manual",
+    "description": "How the latest operation was triggered."
+  },
+  "popupHelpLinks": {
+    "message": "Help links",
+    "description": "Accessible label of the popup footer links."
+  },
+  "linkSettings": {
+    "message": "Settings",
+    "description": "Popup footer link."
+  },
+  "linkFeedback": {
+    "message": "Feedback",
+    "description": "Popup footer link."
+  },
+  "linkPrivacy": {
+    "message": "Privacy",
+    "description": "Popup footer link."
+  },
+  "autoLabelOff": {
+    "message": "Off",
+    "description": "Automatic mode state."
+  },
+  "autoLabelRunning": {
+    "message": "Running",
+    "description": "Automatic mode state."
+  },
+  "autoLabelWaiting": {
+    "message": "Waiting for an AI page",
+    "description": "Automatic mode state."
+  },
+  "optionsLoadFailed": {
+    "message": "Couldn't load settings. Try again.",
+    "description": "Settings page error."
+  },
+  "optionsReload": {
+    "message": "Reload",
+    "description": "Settings page retry button."
+  },
+  "optionsLoading": {
+    "message": "Loading settings...",
+    "description": "Settings page placeholder."
+  },
+  "optionsTitle": {
+    "message": "Settings",
+    "description": "Settings page heading."
+  },
+  "optionsIntro": {
+    "message": "Manual mode runs only when you trigger it. Automatic mode is off by default; when on, it looks for new screenshots only while a supported AI page is open.",
+    "description": "Settings page introduction."
+  },
+  "optionsGettingStarted": {
+    "message": "Getting started",
+    "description": "Settings page section heading."
+  },
+  "optionsStep1": {
+    "message": "1. Copy a screenshot to the clipboard with your system screenshot tool.",
+    "description": "Getting started step."
+  },
+  "optionsStep2": {
+    "message": "2. Click a button in the toolbar popup, or press a shortcut, to attach it to an AI page.",
+    "description": "Getting started step."
+  },
+  "optionsStep3": {
+    "message": "3. Check the attachment and your prompt, then send the message yourself.",
+    "description": "Getting started step."
+  },
+  "optionAutoAttach": {
+    "message": "Turn on automatic paste mode",
+    "description": "Setting label."
+  },
+  "optionDefaultTarget": {
+    "message": "Default AI",
+    "description": "Setting group label."
+  },
+  "optionShowToast": {
+    "message": "Show a page notification after success or failure",
+    "description": "Setting label."
+  },
+  "optionWriteBack": {
+    "message": "Put the screenshot back on the clipboard if attaching fails",
+    "description": "Setting label."
+  },
+  "optionOpenInNewTab": {
+    "message": "Open the AI page in a new tab if it isn't open",
+    "description": "Setting label."
+  },
+  "optionDebugLogs": {
+    "message": "Turn on debug logs",
+    "description": "Setting label."
+  },
+  "optionsPrivacyTitle": {
+    "message": "Privacy and permissions",
+    "description": "Settings page section heading."
+  },
+  "optionsPrivacyNoHistory": {
+    "message": "The extension never reads chat history, never keeps a screenshot history, and never sends messages for you.",
+    "description": "Privacy summary."
+  },
+  "optionsPrivacyClipboard": {
+    "message": "Clipboard access reads your screenshot, prepares the captured image for a manual Gemini or Doubao paste, and puts it back after a failed attach.",
+    "description": "Privacy summary."
+  },
+  "optionsPrivacySites": {
+    "message": "Site access covers only ChatGPT, Claude, Gemini, Doubao, and Grok.",
+    "description": "Privacy summary."
+  },
+  "linkPrivacyPolicy": {
+    "message": "Privacy policy",
+    "description": "Settings page link."
+  },
+  "linkShortcuts": {
+    "message": "Change shortcuts",
+    "description": "Settings page link."
+  },
+  "linkReportIssue": {
+    "message": "Report a problem",
+    "description": "Settings page link."
+  },
+  "optionsSaveFailed": {
+    "message": "Couldn't save the setting. Try again.",
+    "description": "Settings page error."
+  },
+  "optionsSavedAt": {
+    "message": "Saved at $TIME$",
+    "description": "Settings page save confirmation.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "3:41:07 PM"
+      }
+    }
+  },
+  "optionsAutoSave": {
+    "message": "Settings save automatically",
+    "description": "Settings page footer."
+  }
+}

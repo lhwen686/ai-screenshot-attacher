@@ -1,3 +1,5 @@
+import { t } from './i18n';
+
 export type ClipboardErrorType =
   | 'NO_PERMISSION'
   | 'NO_IMAGE_IN_CLIPBOARD'
@@ -17,27 +19,27 @@ export type AttachErrorType =
 export function getErrorMessage(error: AttachErrorType): string {
   switch (error) {
     case 'NO_PERMISSION':
-      return '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。';
+      return t('errorNoPermission');
     case 'NO_IMAGE_IN_CLIPBOARD':
-      return '未检测到剪贴板图片，请先截图后再试。';
+      return t('noClipboardImage');
     case 'UNSUPPORTED_IMAGE_TYPE':
-      return '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。';
+      return t('errorUnsupportedImage');
     case 'CLIPBOARD_READ_FAILED':
-      return '读取剪贴板失败，请重新截图后再试。';
+      return t('errorClipboardRead');
     case 'CLIPBOARD_WRITE_FAILED':
-      return '写回剪贴板失败，请重新截图后手动粘贴。';
+      return t('errorClipboardWrite');
     case 'TARGET_TAB_FAILED':
-      return '打开或切换目标 AI 页面失败。';
+      return t('errorTargetTab');
     case 'TARGET_NOT_READY':
-      return '目标 AI 输入框尚未准备好。';
+      return t('errorTargetNotReady');
     case 'ADAPTER_NOT_FOUND':
-      return '当前目标 AI 暂不支持自动附加。';
+      return t('errorAdapterNotFound');
     case 'AUTO_ATTACH_FAILED':
-      return '自动附加失败。';
+      return t('errorAutoAttach');
     case 'SCRIPT_INJECTION_FAILED':
-      return '向目标页面注入附加脚本失败。';
+      return t('errorScriptInjection');
     default:
-      return '操作失败，请稍后重试。';
+      return t('errorUnknown');
   }
 }
 

@@ -23,6 +23,8 @@ export interface AutoMonitorStatus {
 export interface AttachRuntimePayload {
   targetId: TargetId;
   image: ClipboardImagePayload;
+  /** Localized by the service worker, because a page's main world has no chrome.i18n. */
+  successMessage?: string;
   settings: {
     allowClipboardPaste: boolean;
     showPageToast: boolean;

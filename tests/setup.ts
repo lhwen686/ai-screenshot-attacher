@@ -1,6 +1,11 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { vi } from 'vitest';
+import chineseMessages from '../public/_locales/zh_CN/messages.json';
+import { formatMessage } from '../src/shared/i18n';
+
+// Tests run with the Simplified Chinese messages, the language the extension shipped with first.
+const testMessages: Record<string, Parameters<typeof formatMessage>[0]> = chineseMessages;
 
 type ChromeListener<T extends (...args: never[]) => void> = {
   addListener: ReturnType<typeof vi.fn<[T], void>>;
@@ -43,6 +48,12 @@ export function createChromeMock() {
       setBadgeBackgroundColor: vi.fn().mockResolvedValue(undefined),
       setBadgeText: vi.fn().mockResolvedValue(undefined),
       setTitle: vi.fn().mockResolvedValue(undefined)
+    },
+    i18n: {
+      getMessage: vi.fn((key: string, substitutions?: string | string[]) =>
+        key in testMessages ? formatMessage(testMessages[key], substitutions) : ''
+      ),
+      getUILanguage: vi.fn(() => 'zh-CN')
     },
     runtime: {
       getManifest: vi.fn(() => ({ version: '0.1.0' })),

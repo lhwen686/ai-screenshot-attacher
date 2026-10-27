@@ -15,6 +15,7 @@ import {
 } from '../shared/constants';
 import type { AutoClipboardImageDetectedMessage, OffscreenClipboardWriteTimedOutMessage } from '../shared/messages';
 import { withTimeout as withNamedTimeout } from '../shared/withTimeout';
+import { t } from '../shared/i18n';
 
 const CLIPBOARD_READ_DEADLINE_MS = 5000;
 const CLIPBOARD_WRITE_DEADLINE_MS = 10000;
@@ -55,7 +56,7 @@ chrome.runtime.onMessage.addListener((message: OffscreenClipboardMessage, _sende
       sendResponse({
         ok: false,
         error: 'CLIPBOARD_READ_FAILED',
-        message: '读取剪贴板失败，请重新截图后再试。'
+        message: t('errorClipboardRead')
       });
     });
     return true;
@@ -111,7 +112,7 @@ async function readClipboardImageInDocument(
     asyncClipboardError = {
       ok: false,
       error: foundUnsupportedImage ? 'UNSUPPORTED_IMAGE_TYPE' : 'NO_IMAGE_IN_CLIPBOARD',
-      message: foundUnsupportedImage ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。' : USER_MESSAGES.noClipboardImage
+      message: foundUnsupportedImage ? t('errorUnsupportedImage') : USER_MESSAGES.noClipboardImage
     };
   } catch (error) {
     const type =
@@ -122,10 +123,7 @@ async function readClipboardImageInDocument(
     asyncClipboardError = {
       ok: false,
       error: type,
-      message:
-        type === 'NO_PERMISSION'
-          ? '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。'
-          : '读取剪贴板失败，请重新截图后再试。'
+      message: type === 'NO_PERMISSION' ? t('errorNoPermission') : t('errorClipboardRead')
     };
   }
 
@@ -134,7 +132,7 @@ async function readClipboardImageInDocument(
       asyncClipboardError ?? {
         ok: false,
         error: 'CLIPBOARD_READ_FAILED',
-        message: '读取剪贴板失败，请重新截图后再试。'
+        message: t('errorClipboardRead')
       }
     );
   }
@@ -222,7 +220,7 @@ function clipboardWriteFailure(): ClipboardWriteResult {
   return {
     ok: false,
     error: 'CLIPBOARD_WRITE_FAILED',
-    message: '写回剪贴板失败，请重新截图后手动粘贴。'
+    message: t('errorClipboardWrite')
   };
 }
 
@@ -647,7 +645,7 @@ function readClipboardImageByPasteCommand(
       done({
         ok: false,
         error: foundUnsupportedImage ? 'UNSUPPORTED_IMAGE_TYPE' : 'NO_IMAGE_IN_CLIPBOARD',
-        message: foundUnsupportedImage ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。' : USER_MESSAGES.noClipboardImage
+        message: foundUnsupportedImage ? t('errorUnsupportedImage') : USER_MESSAGES.noClipboardImage
       });
     }, PASTE_FALLBACK_DEADLINE_MS);
 
@@ -693,15 +691,13 @@ function readClipboardImageByPasteCommand(
         done({
           ok: false,
           error: foundUnsupportedImage ? 'UNSUPPORTED_IMAGE_TYPE' : 'NO_IMAGE_IN_CLIPBOARD',
-          message: foundUnsupportedImage
-            ? '剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。'
-            : USER_MESSAGES.noClipboardImage
+          message: foundUnsupportedImage ? t('errorUnsupportedImage') : USER_MESSAGES.noClipboardImage
         });
       } catch {
         done({
           ok: false,
           error: 'CLIPBOARD_READ_FAILED',
-          message: '读取剪贴板失败，请重新截图后再试。'
+          message: t('errorClipboardRead')
         });
       }
     }
@@ -715,14 +711,14 @@ function readClipboardImageByPasteCommand(
         done({
           ok: false,
           error: 'NO_PERMISSION',
-          message: '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。'
+          message: t('errorNoPermission')
         });
       }
     } catch {
       done({
         ok: false,
         error: 'NO_PERMISSION',
-        message: '无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。'
+        message: t('errorNoPermission')
       });
     }
   });

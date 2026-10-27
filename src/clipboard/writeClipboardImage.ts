@@ -1,6 +1,7 @@
 import type { ClipboardImagePayload, ClipboardWriteResult } from './types';
 import { ensureOffscreenDocument } from './offscreenClient';
 import { withTimeout } from '../shared/withTimeout';
+import { t } from '../shared/i18n';
 
 const OFFSCREEN_CREATE_TIMEOUT_MS = 10000;
 const OFFSCREEN_RESPONSE_TIMEOUT_MS = 20000;
@@ -21,14 +22,14 @@ export async function writeClipboardImage(image: ClipboardImagePayload): Promise
       response ?? {
         ok: false,
         error: 'CLIPBOARD_WRITE_FAILED',
-        message: '写回剪贴板失败，请重新截图后手动粘贴。'
+        message: t('errorClipboardWrite')
       }
     );
   } catch {
     return {
       ok: false,
       error: 'CLIPBOARD_WRITE_FAILED',
-      message: '写回剪贴板失败，请重新截图后手动粘贴。'
+      message: t('errorClipboardWrite')
     };
   }
 }

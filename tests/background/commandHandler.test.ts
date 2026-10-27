@@ -321,7 +321,7 @@ describe('command handler', () => {
     expect(chrome.action.setBadgeText).toHaveBeenLastCalledWith({ text: 'OK' });
     expect(chrome.action.setBadgeBackgroundColor).toHaveBeenLastCalledWith({ color: '#059669' });
     expect(chrome.action.setTitle).toHaveBeenLastCalledWith({
-      title: `AI Screenshot Attacher\n${latestResult.message}`
+      title: `AI 截图附加器\n${latestResult.message}`
     });
   });
 });

@@ -1,0 +1,390 @@
+{
+  "extName": {
+    "message": "AI 截图附加器",
+    "description": "Extension name shown in Chrome and the Chrome Web Store. 75 characters at most."
+  },
+  "extShortName": {
+    "message": "AI 截图附加",
+    "description": "Short extension name. 12 characters at most."
+  },
+  "extDescription": {
+    "message": "一键把剪贴板截图附加到 ChatGPT、Claude、Gemini、豆包或 Grok 的输入框，不会替你发送消息。",
+    "description": "Extension summary shown in Chrome and the Chrome Web Store. 132 characters at most."
+  },
+  "localeTag": {
+    "message": "zh-CN",
+    "description": "BCP 47 language tag of this translation, used for the HTML lang attribute."
+  },
+  "optionsDocumentTitle": {
+    "message": "AI 截图附加器设置",
+    "description": "Browser tab title of the settings page."
+  },
+  "commandAttachDefault": {
+    "message": "把剪贴板截图附加到默认 AI",
+    "description": "Keyboard shortcut description."
+  },
+  "commandAttachChatgpt": {
+    "message": "把剪贴板截图附加到 ChatGPT",
+    "description": "Keyboard shortcut description."
+  },
+  "commandAttachClaude": {
+    "message": "把剪贴板截图附加到 Claude",
+    "description": "Keyboard shortcut description."
+  },
+  "commandAttachGemini": {
+    "message": "把剪贴板截图附加到 Gemini",
+    "description": "Keyboard shortcut description."
+  },
+  "commandAttachDoubao": {
+    "message": "把剪贴板截图附加到豆包",
+    "description": "Keyboard shortcut description."
+  },
+  "commandAttachGrok": {
+    "message": "把剪贴板截图附加到 Grok",
+    "description": "Keyboard shortcut description."
+  },
+  "targetChatgpt": {
+    "message": "ChatGPT",
+    "description": "Display name of the ChatGPT target."
+  },
+  "targetClaude": {
+    "message": "Claude",
+    "description": "Display name of the Claude target."
+  },
+  "targetGemini": {
+    "message": "Gemini",
+    "description": "Display name of the Gemini target."
+  },
+  "targetDoubao": {
+    "message": "豆包",
+    "description": "Display name of the Doubao target."
+  },
+  "targetGrok": {
+    "message": "Grok",
+    "description": "Display name of the Grok target."
+  },
+  "noClipboardImage": {
+    "message": "未检测到剪贴板图片，请先截图后再试。",
+    "description": "Shown when the clipboard holds no image."
+  },
+  "attachSuccess": {
+    "message": "截图已附加，请自行输入问题并发送。",
+    "description": "Shown after an attachment is confirmed."
+  },
+  "attachUnconfirmed": {
+    "message": "已执行附加操作，但未能确认结果。请先检查输入区；如果没有图片，再手动 Ctrl+V / Cmd+V。",
+    "description": "Shown when the page may already hold the screenshot."
+  },
+  "attachFallback": {
+    "message": "自动附加失败，已保留截图到剪贴板，请手动 Ctrl+V / Cmd+V。",
+    "description": "Shown when attaching failed and the screenshot was put back on the clipboard."
+  },
+  "attachFallbackNoWrite": {
+    "message": "自动附加失败，请手动 Ctrl+V / Cmd+V。",
+    "description": "Shown when attaching failed and writing back to the clipboard is turned off."
+  },
+  "attachFallbackWriteFailed": {
+    "message": "自动附加失败，请手动 Ctrl+V / Cmd+V。截图没能写回剪贴板，但原剪贴板通常仍保留着它。",
+    "description": "Shown when attaching failed and writing the screenshot back to the clipboard also failed."
+  },
+  "targetLoadFailed": {
+    "message": "目标 AI 页面加载失败，请打开页面后重试。",
+    "description": "Shown when the target page does not load."
+  },
+  "serviceUnavailable": {
+    "message": "插件后台暂不可用，请稍后重试。",
+    "description": "Shown when the service worker does not respond."
+  },
+  "autoMonitorEnabled": {
+    "message": "自动粘贴模式已开启。",
+    "description": "Automatic mode status."
+  },
+  "autoMonitorDisabled": {
+    "message": "自动粘贴模式已关闭。",
+    "description": "Automatic mode status."
+  },
+  "autoMonitorRecovering": {
+    "message": "自动粘贴模式正在恢复，请稍后。",
+    "description": "Automatic mode status while it restarts."
+  },
+  "autoMonitorUnavailable": {
+    "message": "自动粘贴模式暂不可用，请稍后重试。",
+    "description": "Automatic mode status when supported pages cannot be listed."
+  },
+  "autoMonitorWaiting": {
+    "message": "自动粘贴模式已开启，等待打开 ChatGPT / Claude / Gemini / 豆包 / Grok。",
+    "description": "Automatic mode status when no supported page is open."
+  },
+  "autoMonitorRunning": {
+    "message": "自动粘贴模式运行中。",
+    "description": "Automatic mode status while it watches the clipboard."
+  },
+  "autoMonitorStartFailed": {
+    "message": "自动粘贴模式启动失败：$REASON$",
+    "description": "Automatic mode status when the clipboard monitor fails to start.",
+    "placeholders": {
+      "reason": {
+        "content": "$1",
+        "example": "clipboard permission denied"
+      }
+    }
+  },
+  "errorNoPermission": {
+    "message": "无法读取剪贴板，请确认浏览器已允许扩展访问剪贴板。",
+    "description": "Clipboard permission error."
+  },
+  "errorUnsupportedImage": {
+    "message": "剪贴板中没有可用的 PNG、JPEG 或 WebP 图片。",
+    "description": "Unsupported clipboard image error."
+  },
+  "errorClipboardRead": {
+    "message": "读取剪贴板失败，请重新截图后再试。",
+    "description": "Clipboard read error."
+  },
+  "errorClipboardWrite": {
+    "message": "写回剪贴板失败，请重新截图后手动粘贴。",
+    "description": "Clipboard write error."
+  },
+  "errorTargetTab": {
+    "message": "打开或切换目标 AI 页面失败。",
+    "description": "Target tab error."
+  },
+  "errorTargetNotReady": {
+    "message": "目标 AI 输入框尚未准备好。",
+    "description": "Target composer not ready error."
+  },
+  "errorAdapterNotFound": {
+    "message": "当前目标 AI 暂不支持自动附加。",
+    "description": "No adapter for the page error."
+  },
+  "errorAutoAttach": {
+    "message": "自动附加失败。",
+    "description": "Generic attach failure."
+  },
+  "errorScriptInjection": {
+    "message": "向目标页面注入附加脚本失败。",
+    "description": "Script injection error."
+  },
+  "errorUnknown": {
+    "message": "操作失败，请稍后重试。",
+    "description": "Unknown error."
+  },
+  "popupTitle": {
+    "message": "附加剪贴板截图",
+    "description": "Popup heading."
+  },
+  "popupIntro": {
+    "message": "截图会放进 AI 输入框，发不发由你决定。",
+    "description": "Popup introduction."
+  },
+  "popupDefaultTarget": {
+    "message": "默认模型",
+    "description": "Popup label for the default target."
+  },
+  "popupLoading": {
+    "message": "加载中...",
+    "description": "Popup placeholder while settings load."
+  },
+  "popupLoadFailed": {
+    "message": "加载失败",
+    "description": "Popup placeholder when settings fail to load."
+  },
+  "popupAutoMode": {
+    "message": "自动模式",
+    "description": "Popup label for automatic mode."
+  },
+  "popupAutoHint": {
+    "message": "打开设置可启用自动粘贴",
+    "description": "Popup hint when automatic mode status is unknown."
+  },
+  "popupAttaching": {
+    "message": "正在附加...",
+    "description": "Primary button text while attaching."
+  },
+  "popupAttachDefault": {
+    "message": "附加到默认模型（$TARGET$）",
+    "description": "Primary button text.",
+    "placeholders": {
+      "target": {
+        "content": "$1",
+        "example": "ChatGPT"
+      }
+    }
+  },
+  "popupDefaultLoadFailed": {
+    "message": "默认模型加载失败",
+    "description": "Primary button text when settings fail to load."
+  },
+  "popupDefaultLoading": {
+    "message": "正在加载默认模型...",
+    "description": "Primary button text while settings load."
+  },
+  "popupQuickTargets": {
+    "message": "快速目标",
+    "description": "Accessible label of the target button group."
+  },
+  "popupWorking": {
+    "message": "处理中",
+    "description": "Target button text while attaching."
+  },
+  "popupAttachTo": {
+    "message": "附加到 $TARGET$",
+    "description": "Target button text.",
+    "placeholders": {
+      "target": {
+        "content": "$1",
+        "example": "Claude"
+      }
+    }
+  },
+  "popupLastResult": {
+    "message": "最近一次结果",
+    "description": "Popup label for the latest operation."
+  },
+  "popupNoHistory": {
+    "message": "暂无操作记录",
+    "description": "Popup text before any operation."
+  },
+  "triggerAuto": {
+    "message": "自动",
+    "description": "How the latest operation was triggered."
+  },
+  "triggerManual": {
+    "message": "手动",
+    "description": "How the latest operation was triggered."
+  },
+  "popupHelpLinks": {
+    "message": "帮助链接",
+    "description": "Accessible label of the popup footer links."
+  },
+  "linkSettings": {
+    "message": "设置",
+    "description": "Popup footer link."
+  },
+  "linkFeedback": {
+    "message": "反馈",
+    "description": "Popup footer link."
+  },
+  "linkPrivacy": {
+    "message": "隐私",
+    "description": "Popup footer link."
+  },
+  "autoLabelOff": {
+    "message": "关闭",
+    "description": "Automatic mode state."
+  },
+  "autoLabelRunning": {
+    "message": "运行中",
+    "description": "Automatic mode state."
+  },
+  "autoLabelWaiting": {
+    "message": "等待 AI 页面",
+    "description": "Automatic mode state."
+  },
+  "optionsLoadFailed": {
+    "message": "设置加载失败，请重试。",
+    "description": "Settings page error."
+  },
+  "optionsReload": {
+    "message": "重新加载",
+    "description": "Settings page retry button."
+  },
+  "optionsLoading": {
+    "message": "加载设置...",
+    "description": "Settings page placeholder."
+  },
+  "optionsTitle": {
+    "message": "设置",
+    "description": "Settings page heading."
+  },
+  "optionsIntro": {
+    "message": "手动模式只在你触发时运行；自动模式默认关闭，开启后也只在受支持 AI 页面已打开时检测新截图。",
+    "description": "Settings page introduction."
+  },
+  "optionsGettingStarted": {
+    "message": "首次使用",
+    "description": "Settings page section heading."
+  },
+  "optionsStep1": {
+    "message": "1. 先用系统截图工具把图片复制到剪贴板。",
+    "description": "Getting started step."
+  },
+  "optionsStep2": {
+    "message": "2. 点击扩展弹窗里的按钮，或按快捷键，把截图附加到目标 AI 页面。",
+    "description": "Getting started step."
+  },
+  "optionsStep3": {
+    "message": "3. 检查附件和提示词，然后自己发送消息。",
+    "description": "Getting started step."
+  },
+  "optionAutoAttach": {
+    "message": "启用自动粘贴模式",
+    "description": "Setting label."
+  },
+  "optionDefaultTarget": {
+    "message": "默认模型",
+    "description": "Setting group label."
+  },
+  "optionShowToast": {
+    "message": "附加完成后在页面上显示提示",
+    "description": "Setting label."
+  },
+  "optionWriteBack": {
+    "message": "附加失败时把截图放回剪贴板",
+    "description": "Setting label."
+  },
+  "optionOpenInNewTab": {
+    "message": "没有目标页面时在新标签页打开",
+    "description": "Setting label."
+  },
+  "optionDebugLogs": {
+    "message": "启用调试日志",
+    "description": "Setting label."
+  },
+  "optionsPrivacyTitle": {
+    "message": "隐私与权限",
+    "description": "Settings page section heading."
+  },
+  "optionsPrivacyNoHistory": {
+    "message": "插件不读取聊天记录，不保存截图历史，也不会自动发送消息。",
+    "description": "Privacy summary."
+  },
+  "optionsPrivacyClipboard": {
+    "message": "剪贴板权限用于读取截图、为手动 Gemini/豆包粘贴准备已捕获的图片，以及在附加失败后把截图放回剪贴板。",
+    "description": "Privacy summary."
+  },
+  "optionsPrivacySites": {
+    "message": "站点权限只覆盖 ChatGPT、Claude、Gemini、豆包和 Grok。",
+    "description": "Privacy summary."
+  },
+  "linkPrivacyPolicy": {
+    "message": "隐私政策",
+    "description": "Settings page link."
+  },
+  "linkShortcuts": {
+    "message": "修改快捷键",
+    "description": "Settings page link."
+  },
+  "linkReportIssue": {
+    "message": "反馈问题",
+    "description": "Settings page link."
+  },
+  "optionsSaveFailed": {
+    "message": "设置保存失败，请重试。",
+    "description": "Settings page error."
+  },
+  "optionsSavedAt": {
+    "message": "已保存 $TIME$",
+    "description": "Settings page save confirmation.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "15:41:07"
+      }
+    }
+  },
+  "optionsAutoSave": {
+    "message": "设置会自动保存",
+    "description": "Settings page footer."
+  }
+}

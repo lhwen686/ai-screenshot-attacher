@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "AI Screenshot Attacher",
-  "short_name": "AI Attacher",
+  "name": "__MSG_extName__",
+  "short_name": "__MSG_extShortName__",
   "version": "0.2.0",
+  "default_locale": "en",
   "minimum_chrome_version": "109",
-  "description": "Attach clipboard screenshots to ChatGPT, Claude, Gemini, Doubao, or Grok. Never sends messages automatically.",
+  "description": "__MSG_extDescription__",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -19,7 +20,7 @@
       "128": "icons/icon-128.png"
     },
     "default_popup": "src/popup/popup.html",
-    "default_title": "AI Screenshot Attacher"
+    "default_title": "__MSG_extName__"
   },
   "options_page": "src/options/options.html",
   "background": {
@@ -40,31 +41,31 @@
       "suggested_key": {
         "default": "Alt+Shift+A"
       },
-      "description": "Attach clipboard screenshot to the default AI target"
+      "description": "__MSG_commandAttachDefault__"
     },
     "attach-to-chatgpt": {
       "suggested_key": {
         "default": "Alt+Shift+1"
       },
-      "description": "Attach clipboard screenshot to ChatGPT"
+      "description": "__MSG_commandAttachChatgpt__"
     },
     "attach-to-claude": {
       "suggested_key": {
         "default": "Alt+Shift+2"
       },
-      "description": "Attach clipboard screenshot to Claude"
+      "description": "__MSG_commandAttachClaude__"
     },
     "attach-to-gemini": {
       "suggested_key": {
         "default": "Alt+Shift+3"
       },
-      "description": "Attach clipboard screenshot to Gemini"
+      "description": "__MSG_commandAttachGemini__"
     },
     "attach-to-doubao": {
-      "description": "Attach clipboard screenshot to Doubao"
+      "description": "__MSG_commandAttachDoubao__"
     },
     "attach-to-grok": {
-      "description": "Attach clipboard screenshot to Grok"
+      "description": "__MSG_commandAttachGrok__"
     }
   }
 }
