@@ -4,7 +4,7 @@ Status: 0.2.0 candidate; blocked on finishing signed-in acceptance.
 
 ## Submission Blockers
 
-- BLOCKER: Signed-in acceptance is partly done: Grok (popup button and default shortcut) and Gemini passed. Re-test ChatGPT after the composer-scope fix, and run the remaining Grok items (automatic mode, repeated trigger, signed-out failure). See `docs/audit-2026-10-27.md`.
+- BLOCKER: Signed-in acceptance passed for Grok (popup button and default shortcut), Gemini, and ChatGPT (re-tested after the composer-scope fix). Run the remaining Grok items (automatic mode, repeated trigger, signed-out failure) before submitting. See `docs/audit-2026-10-27.md`.
 
 ## Package
 
