@@ -58,6 +58,28 @@ describe('adapter readiness and input targeting', () => {
     await expect(pending).resolves.toMatchObject({ ok: true, method: 'paste-event', outcome: 'confirmed' });
   });
 
+  it('attaches through the form-scoped ChatGPT composer textarea seen on 2026-10-27', async () => {
+    vi.useFakeTimers();
+    installClipboardEventMocks();
+    document.body.innerHTML =
+      '<main><form><textarea id="mobile-composer-prompt" aria-label="与 ChatGPT 聊天"></textarea>' +
+      '<input id="octane-mobile-composer-photos-input" type="file" accept="image/*"></form></main>';
+    const form = document.querySelector('form')!;
+    const textarea = document.querySelector('textarea')!;
+    makeVisible(textarea);
+    textarea.addEventListener('paste', () => {
+      const preview = document.createElement('img');
+      preview.src = 'blob:https://chatgpt.com/attached-image';
+      makeVisible(preview);
+      form.append(preview);
+    });
+
+    const pending = chatgptAdapter.attachImage(new File(['image'], 'screenshot.png', { type: 'image/png' }));
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toMatchObject({ ok: true, method: 'paste-event', outcome: 'confirmed' });
+  });
+
   it('does not treat an existing ChatGPT attachment control as a new attachment', async () => {
     vi.useFakeTimers();
     installClipboardEventMocks();
@@ -753,6 +775,33 @@ describe('adapter readiness and input targeting', () => {
     await expect(pending).resolves.toMatchObject({ ok: false, outcome: 'unknown' });
     expect(execCommand).not.toHaveBeenCalled();
     expect(syntheticPaste).toHaveBeenCalledOnce();
+  });
+
+  it('observes a Gemini preview inside input-area-v2 when the composer has no bard-text-input wrapper', async () => {
+    vi.useFakeTimers();
+    installClipboardEventMocks();
+    document.body.innerHTML =
+      '<main><input-area-v2><div class="text-input-field"><div id="attachments"></div><rich-textarea>' +
+      '<div class="ql-editor textarea new-input-ui" contenteditable="true" aria-label="Enter a prompt here"></div>' +
+      '</rich-textarea></div></input-area-v2></main>';
+    const editor = document.querySelector('.ql-editor')!;
+    makeVisible(editor);
+    editor.addEventListener('paste', () => {
+      const preview = document.createElement('file-preview');
+      makeVisible(preview);
+      document.querySelector('#attachments')!.append(preview);
+    });
+
+    const attach = geminiAdapter.attachImage as unknown as (
+      file: File,
+      options: { allowClipboardPaste: boolean }
+    ) => ReturnType<typeof geminiAdapter.attachImage>;
+    const pending = attach(new File(['image'], 'screenshot.png', { type: 'image/png' }), {
+      allowClipboardPaste: false
+    });
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toMatchObject({ ok: true, method: 'paste-event', outcome: 'confirmed' });
   });
 
   it('prefers captured synthetic paste over Gemini file inputs in automatic mode', async () => {

@@ -17,8 +17,14 @@ import {
   waitForAnyElement,
   waitForCondition
 } from '../content/domUtils';
+import {
+  GEMINI_COMPOSER_INPUT_SELECTORS,
+  GEMINI_COMPOSER_ROOT_SELECTOR,
+  GEMINI_UPLOAD_PREVIEW_SELECTORS,
+  GEMINI_UPLOAD_TEXT_PATTERNS
+} from './geminiSelectors';
 
-const uploadTextPatterns = [/uploading/i, /processing/i, /attached/i, /上传中/, /正在上传/, /处理中/, /已附加/];
+const uploadTextPatterns = GEMINI_UPLOAD_TEXT_PATTERNS;
 const uploadMenuTextPattern = /upload|attach|image|photo|file|device|上传|附件|图片|照片|文件|设备|本机/i;
 const attachmentButtonTextPattern = /add|attach|upload|plus|more|添加|附件|上传|更多/i;
 const submitActionTextPattern = /send|submit|发送|提交/i;
@@ -31,22 +37,6 @@ const strongInputSelectors = [
   'textarea[aria-label*="提示" i]',
   '[aria-label*="Enter a prompt" i]',
   '[aria-label*="输入提示" i]'
-];
-const explicitComposerInputSelectors = [
-  'bard-text-input .ql-editor[contenteditable="true"]',
-  'bard-text-input textarea',
-  'bard-text-input [contenteditable="true"]',
-  'rich-textarea textarea',
-  'rich-textarea [contenteditable="true"]',
-  '[data-testid*="composer" i] textarea',
-  '[data-testid*="composer" i] [contenteditable="true"]',
-  '[data-testid*="composer" i] [role="textbox"]',
-  '[data-test-id*="composer" i] textarea',
-  '[data-test-id*="composer" i] [contenteditable="true"]',
-  '[data-test-id*="composer" i] [role="textbox"]',
-  '[class*="composer" i] textarea',
-  '[class*="composer" i] [contenteditable="true"]',
-  '[class*="composer" i] [role="textbox"]'
 ];
 const geminiMenuRootSelectors = ['[role="menu"]', '[role="listbox"]'];
 const geminiActionSelectors = [
@@ -61,7 +51,7 @@ const geminiActionSelectors = [
 
 const selectors: AdapterSelectorSet = {
   fileInputs: [...GENERIC_FILE_INPUT_SELECTORS],
-  textInputs: [...strongInputSelectors, ...explicitComposerInputSelectors],
+  textInputs: [...strongInputSelectors, ...GEMINI_COMPOSER_INPUT_SELECTORS],
   dropTargets: [
     'bard-text-input',
     'rich-textarea',
@@ -76,25 +66,13 @@ const selectors: AdapterSelectorSet = {
     '[data-testid*="composer" i]'
   ],
   attachmentPreviews: [
-    'file-preview',
-    'image-preview',
-    'upload-image',
-    'mat-chip',
+    ...GEMINI_UPLOAD_PREVIEW_SELECTORS,
     '[data-testid*="attachment" i]',
     '[data-test-id*="attachment" i]',
     '[data-test-id*="file" i]',
     '[data-test-id*="upload" i]',
     '[aria-label*="attachment" i]',
-    '[aria-label*="attached" i]',
-    '[aria-label*="uploaded" i]',
-    '[aria-label*="remove" i]',
     '[aria-label*="image" i]',
-    '[class*="image-preview" i]',
-    '[class*="file-preview" i]',
-    '[class*="upload" i]',
-    '[class*="attachment" i]',
-    'mat-progress-spinner',
-    'mat-spinner',
     'main img[src^="blob:"]',
     ...GENERIC_ATTACHMENT_PREVIEW_SELECTORS
   ]
@@ -372,7 +350,9 @@ function visibleActionCandidates(roots: HTMLElement[]): HTMLElement[] {
 }
 
 function findActiveGeminiComposerRoot(): HTMLElement | undefined {
-  return findComposerScope(selectors.textInputs, strongInputSelectors)?.root;
+  return findComposerScope(selectors.textInputs, strongInputSelectors, {
+    fallbackRootSelector: GEMINI_COMPOSER_ROOT_SELECTOR
+  })?.root;
 }
 
 function findVisibleGeminiMenuRoots(): HTMLElement[] {

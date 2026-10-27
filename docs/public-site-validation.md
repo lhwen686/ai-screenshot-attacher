@@ -1,13 +1,15 @@
 # Public Site Validation
 
-The public website pages are static files intended for GitHub Pages publishing from the repository `docs/` folder.
+The public website pages are static files under the repository `docs/` folder. Since 2026-10-27, GitHub Pages publishes them from `main:/docs`, so the hosted pages show whatever is on `main`.
 
 Public URLs for store submission:
 
-- Home: `https://lhwen686.github.io/ai-screenshot-attacher/`
-- Privacy: `https://lhwen686.github.io/ai-screenshot-attacher/privacy/`
-- Support: `https://lhwen686.github.io/ai-screenshot-attacher/support/`
-- FAQ: `https://lhwen686.github.io/ai-screenshot-attacher/faq/`
+- Home: `https://lhw686.me/ai-screenshot-attacher/`
+- Privacy: `https://lhw686.me/ai-screenshot-attacher/privacy/`
+- Support: `https://lhw686.me/ai-screenshot-attacher/support/`
+- FAQ: `https://lhw686.me/ai-screenshot-attacher/faq/`
+
+The account's user site (`lhwen686.github.io`) uses the custom domain `lhw686.me`, so GitHub serves this project's pages under it. The `https://lhwen686.github.io/ai-screenshot-attacher/...` addresses still work, but they redirect to plain `http://lhw686.me/...` because the user site does not enforce HTTPS. Use the HTTPS addresses above in store dashboards.
 
 Validation command:
 
@@ -44,6 +46,13 @@ No analytics scripts are included. If analytics are added later, they must be op
 
 ## Hosted URL Check
 
-On 2026-10-27, HTTP HEAD requests following redirects returned `404` for all four public URLs above. Local file validation is PASS; hosted publication is FAIL and remains a store-submission blocker. No GitHub Pages settings were changed.
+Earlier on 2026-10-27 all four public URLs returned `404` because GitHub Pages had never been enabled for the repository. Pages was then enabled with source `main:/docs`, and the first build finished successfully. Requests made after that build returned:
 
-The extension's privacy button now opens `https://github.com/lhwen686/ai-screenshot-attacher/blob/main/PRIVACY.md` so users can read the policy before the website is published.
+| Address                                                                     | Result                                                        |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| The four HTTPS addresses above, plus `assets/site.css`                      | `200`, no redirect                                            |
+| `https://lhwen686.github.io/ai-screenshot-attacher/` and its three subpages | `301` to `http://lhw686.me/ai-screenshot-attacher/...`, `200` |
+
+Until the 0.2.0 branch is merged, the hosted pages show the `main` text, which lists four targets.
+
+The extension's privacy button opens `https://github.com/lhwen686/ai-screenshot-attacher/blob/main/PRIVACY.md`. That link does not depend on the personal domain, so it stays even though the website is now published.
