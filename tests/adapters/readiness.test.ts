@@ -4,6 +4,7 @@ import { chatgptAdapter } from '../../src/adapters/chatgpt';
 import { claudeAdapter } from '../../src/adapters/claude';
 import { doubaoAdapter } from '../../src/adapters/doubao';
 import { geminiAdapter } from '../../src/adapters/gemini';
+import { grokAdapter } from '../../src/adapters/grok';
 import { makeVisible, installClipboardEventMocks } from '../helpers/dom';
 
 afterEach(() => {
@@ -93,7 +94,8 @@ describe('adapter readiness and input targeting', () => {
     ['ChatGPT', chatgptAdapter],
     ['Claude', claudeAdapter],
     ['Gemini', geminiAdapter],
-    ['Doubao', doubaoAdapter]
+    ['Doubao', doubaoAdapter],
+    ['Grok', grokAdapter]
   ])('%s does not treat an ordinary settings form as a composer', async (_name, adapter) => {
     vi.useFakeTimers();
     installClipboardEventMocks();

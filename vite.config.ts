@@ -20,6 +20,7 @@ function copyManifest(): PluginOption {
 export default defineConfig({
   plugins: [react(), copyManifest()],
   build: {
+    target: 'chrome109',
     outDir,
     emptyOutDir: true,
     rollupOptions: {

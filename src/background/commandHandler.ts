@@ -17,6 +17,9 @@ const MANUAL_FEEDBACK_TIMEOUT_MS = 5000;
 let latestOperationResult: OperationResult | undefined;
 let operationPersistenceRevision = 0;
 let actionFeedbackRevision = 0;
+let manualRequestSequence = 0;
+let pendingManualRequests = 0;
+let lastCompletedManualAttach: { key: string; pendingThroughSequence: number; result: OperationResult } | undefined;
 
 interface PreparedManualAttach {
   settings: AppSettings;
@@ -36,6 +39,8 @@ export async function handleCommand(command: string): Promise<OperationResult> {
       return attachToTarget('gemini');
     case 'attach-to-doubao':
       return attachToTarget('doubao');
+    case 'attach-to-grok':
+      return attachToTarget('grok');
     case 'attach-to-default-ai':
     default:
       return attachToTarget();
@@ -43,6 +48,8 @@ export async function handleCommand(command: string): Promise<OperationResult> {
 }
 
 export function attachToTarget(targetId?: TargetId): Promise<OperationResult> {
+  const requestSequence = ++manualRequestSequence;
+  pendingManualRequests += 1;
   const preparation: Promise<SettledPreparation> = prepareManualAttach(targetId).then(
     (value) => ({ ok: true, value }),
     (error: unknown) => ({ ok: false, error })
@@ -52,7 +59,27 @@ export function attachToTarget(targetId?: TargetId): Promise<OperationResult> {
     if (!settled.ok) {
       throw settled.error;
     }
-    return attachToTargetUnlocked(settled.value);
+    const { finalTargetId, clipboardResult } = settled.value;
+    const key = clipboardResult.ok
+      ? `${finalTargetId}:${clipboardResult.image.mimeType}:${clipboardResult.image.dataUrl}`
+      : undefined;
+    if (
+      key &&
+      lastCompletedManualAttach?.key === key &&
+      requestSequence <= lastCompletedManualAttach.pendingThroughSequence
+    ) {
+      return lastCompletedManualAttach.result;
+    }
+    const result = await attachToTargetUnlocked(settled.value);
+    lastCompletedManualAttach = key ? { key, result, pendingThroughSequence: manualRequestSequence } : undefined;
+    return result;
+  }).finally(() => {
+    pendingManualRequests -= 1;
+    // Retain the snapshot only while overlapping triggers drain; never suppress a later deliberate repeat
+    // and do not keep a manual screenshot after the queue has finished.
+    if (pendingManualRequests === 0) {
+      lastCompletedManualAttach = undefined;
+    }
   });
 }
 

@@ -79,6 +79,54 @@ describe('automatic monitor refresh', () => {
     vi.useRealTimers();
   });
 
+  it('delivers a captured image to an already open Grok tab without allowing system clipboard paste', async () => {
+    mocks.countOpenTargetTabs.mockResolvedValue(1);
+    mocks.getBestOpenTargetTabForAuto.mockResolvedValue({ targetId: 'grok', tab: { id: 55 } });
+    const { refreshAutoMonitor, handleAutoClipboardImage } = await import('../../src/background/autoMonitor');
+    await refreshAutoMonitor();
+    await handleAutoClipboardImage(image, 'grok-image', 'grok-delivery');
+    expect(mocks.executeAttachRuntime).toHaveBeenCalledWith(
+      55,
+      expect.objectContaining({
+        targetId: 'grok',
+        image,
+        settings: expect.objectContaining({ allowClipboardPaste: false })
+      })
+    );
+    expect(mocks.writeClipboardImage).not.toHaveBeenCalled();
+    expect(mocks.recordOperationResult).toHaveBeenCalledWith(expect.objectContaining({ ok: true, targetId: 'grok' }));
+  });
+
+  it.each(['disabled', 'no-targets'])(
+    'cancels a pending target selection when monitoring stops: %s',
+    async (reason) => {
+      mocks.countOpenTargetTabs.mockResolvedValue(1);
+      const { refreshAutoMonitor, handleAutoClipboardImage } = await import('../../src/background/autoMonitor');
+      await refreshAutoMonitor();
+      let finishSelection!: (selection: { targetId: string; tab: { id: number } }) => void;
+      mocks.getBestOpenTargetTabForAuto.mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishSelection = resolve;
+        })
+      );
+      const delivery = handleAutoClipboardImage(image, 'cancelled-image', 'cancelled-delivery');
+      const outcome = delivery.then(
+        () => 'delivered',
+        () => 'cancelled'
+      );
+      await vi.waitFor(() => expect(mocks.getBestOpenTargetTabForAuto).toHaveBeenCalledOnce());
+      if (reason === 'disabled') {
+        mocks.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, autoAttachEnabled: false });
+      } else {
+        mocks.countOpenTargetTabs.mockResolvedValue(0);
+      }
+      await refreshAutoMonitor();
+      finishSelection({ targetId: 'chatgpt', tab: { id: 42 } });
+      expect(await outcome).toBe('cancelled');
+      expect(mocks.executeAttachRuntime).not.toHaveBeenCalled();
+    }
+  );
+
   it('contains failures from a scheduled lifecycle refresh', async () => {
     vi.useFakeTimers();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

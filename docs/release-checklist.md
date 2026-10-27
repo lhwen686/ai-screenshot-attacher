@@ -6,6 +6,7 @@ Run this checklist before publishing a public build or Chrome Web Store submissi
 
 - Confirm the working tree contains only intended release changes.
 - Run `npm run verify`.
+- Run `npm audit --audit-level=high`.
 - Run `npm run package`.
 - Confirm `npm run package` reports a passing extension-package validation before creating the ZIP.
 - Run `node scripts/validate-store-assets.mjs`.
@@ -20,19 +21,21 @@ Load `dist/` manually from `chrome://extensions` or `edge://extensions`. Do not 
 
 Validate the scenarios in `docs/manual-test-matrix.md`:
 
-- Manual attach to ChatGPT, Claude, Gemini, and Doubao.
+- Manual attach to ChatGPT, Claude, Gemini, Doubao, and Grok.
 - Popup quick buttons and default target action.
 - Text-only clipboard failure message.
 - Automatic mode disabled by default.
 - Automatic mode attaches only to already open supported pages.
 - Failure fallback keeps the screenshot available for manual paste.
 - The extension never sends an AI message automatically.
+- Complete signed-in Grok acceptance and record the result in the audit; unit tests alone do not clear this requirement.
 
 ## Chrome Web Store Submission
 
 - Upload the zip from `release/`.
 - Use listing text from `docs/chrome-web-store-listing.md`.
 - Upload assets from `store-assets/chrome-web-store/`.
+- Refresh screenshots to show the five-target 0.2.0 UI; existing assets depict the earlier version.
 - Confirm store asset dimensions match `docs/store-asset-validation.md`.
 - Confirm public page URLs match `docs/public-site-validation.md`.
 - Use `PRIVACY.md` as the privacy-policy source.

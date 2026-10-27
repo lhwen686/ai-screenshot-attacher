@@ -1,5 +1,7 @@
 # Chrome Web Store Listing
 
+This is 0.2.0 candidate copy. Complete live Grok acceptance, refresh the screenshots, and verify the public URLs before submitting it to a store. See [the audit](audit-2026-10-27.md).
+
 Use this file as the source text for the Chrome Web Store dashboard.
 
 ## Basic Listing
@@ -9,7 +11,7 @@ Use this file as the source text for the Chrome Web Store dashboard.
 - Category: Productivity
 - Language: English, with Chinese in-extension UI and bilingual README.
 - Minimum browser version: Chrome 109.
-- Short description: Attach clipboard screenshots to ChatGPT, Claude, Gemini, or Doubao after your action. It never sends messages automatically.
+- Short description: Attach clipboard screenshots to ChatGPT, Claude, Gemini, Doubao, or Grok. Never sends messages automatically.
 
 ## Public Website URLs
 
@@ -24,7 +26,7 @@ These pages are static files under `docs/` for GitHub Pages publishing. They inc
 
 AI Screenshot Attacher helps you move a screenshot from the system clipboard into an AI chat page with less manual work.
 
-Capture a screenshot, choose ChatGPT, Claude, Gemini, or Doubao, and the extension attaches the image to the target input area. You still review the attachment, write your prompt, and send the message yourself.
+Capture a screenshot, choose ChatGPT, Claude, Gemini, Doubao, or Grok, and the extension attaches the image to the target input area. You still review the attachment, write your prompt, and send the message yourself.
 
 Privacy boundaries:
 
@@ -40,6 +42,7 @@ Supported targets:
 - Claude
 - Gemini
 - Doubao
+- Grok (`grok.com`; signed-in upload required)
 
 Known limits:
 
@@ -87,7 +90,7 @@ Host permissions are limited to supported AI sites and should not be broadened f
 
 1. Load the extension and open the popup.
 2. Copy a screenshot to the system clipboard.
-3. Use the popup button for ChatGPT, Claude, Gemini, or Doubao, or use the default shortcuts for ChatGPT/Claude/Gemini.
+3. Use the popup button for ChatGPT, Claude, Gemini, Doubao, or Grok, or use the default shortcuts for ChatGPT/Claude/Gemini.
 4. Confirm the image appears in the AI site's input attachment area.
 5. Confirm the extension does not send the AI message.
 6. Test with text-only clipboard content and confirm the no-image message appears.

@@ -19,7 +19,7 @@ describe('options UI', () => {
     });
   });
 
-  it('persists default model changes from the four target choices', async () => {
+  it('persists default model changes including Grok', async () => {
     vi.resetModules();
     document.body.innerHTML = '<div id="root"></div>';
 
@@ -41,6 +41,12 @@ describe('options UI', () => {
         settings: expect.objectContaining({ defaultTargetId: 'doubao' })
       });
     });
+    await userEvent.click(screen.getByRole('radio', { name: 'Grok' }));
+    await waitFor(() => {
+      expect(chrome.storage.sync.set).toHaveBeenCalledWith({
+        settings: expect.objectContaining({ defaultTargetId: 'grok' })
+      });
+    });
   });
 
   it('opens privacy, shortcut, and feedback links', async () => {
@@ -55,7 +61,7 @@ describe('options UI', () => {
 
     await waitFor(() => {
       expect(chrome.tabs.create).toHaveBeenCalledWith({
-        url: 'https://lhwen686.github.io/ai-screenshot-attacher/privacy/'
+        url: 'https://github.com/lhwen686/ai-screenshot-attacher/blob/main/PRIVACY.md'
       });
       expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'chrome://extensions/shortcuts' });
       expect(chrome.tabs.create).toHaveBeenCalledWith({

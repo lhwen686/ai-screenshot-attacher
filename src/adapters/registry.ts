@@ -4,8 +4,9 @@ import { chatgptAdapter } from './chatgpt';
 import { claudeAdapter } from './claude';
 import { doubaoAdapter } from './doubao';
 import { geminiAdapter } from './gemini';
+import { grokAdapter } from './grok';
 
-export const adapters: AiTargetAdapter[] = [chatgptAdapter, claudeAdapter, geminiAdapter, doubaoAdapter];
+export const adapters: AiTargetAdapter[] = [chatgptAdapter, claudeAdapter, geminiAdapter, doubaoAdapter, grokAdapter];
 
 export function getAdapterById(targetId: TargetId): AiTargetAdapter | undefined {
   return adapters.find((adapter) => adapter.id === targetId);

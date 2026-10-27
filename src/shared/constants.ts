@@ -1,10 +1,10 @@
 export const EXTENSION_NAME = 'AI Screenshot Attacher';
 export const PROJECT_URL = 'https://github.com/lhwen686/ai-screenshot-attacher';
 export const SUPPORT_URL = `${PROJECT_URL}/issues/new/choose`;
-export const PRIVACY_URL = 'https://lhwen686.github.io/ai-screenshot-attacher/privacy/';
+export const PRIVACY_URL = `${PROJECT_URL}/blob/main/PRIVACY.md`;
 export const SHORTCUTS_HELP_URL = 'chrome://extensions/shortcuts';
 
-export type TargetId = 'chatgpt' | 'claude' | 'gemini' | 'doubao';
+export type TargetId = 'chatgpt' | 'claude' | 'gemini' | 'doubao' | 'grok';
 
 export interface TargetDefinition {
   id: TargetId;
@@ -42,6 +42,13 @@ export const AI_TARGETS: Record<TargetId, TargetDefinition> = {
     defaultUrl: 'https://www.doubao.com/chat/',
     urlPatterns: ['https://doubao.com/*', 'https://www.doubao.com/*'],
     hostnames: ['doubao.com', 'www.doubao.com']
+  },
+  grok: {
+    id: 'grok',
+    name: 'Grok',
+    defaultUrl: 'https://grok.com/',
+    urlPatterns: ['https://grok.com/*'],
+    hostnames: ['grok.com']
   }
 };
 

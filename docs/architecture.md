@@ -28,6 +28,14 @@ Automatic attach flow:
 3. The monitor fingerprints clipboard images and reports new images.
 4. Service worker attaches to the best open supported target without opening new pages.
 
+Overlapping manual triggers for the same captured image and target share the completed result while the queue drains. Once that batch ends, a later deliberate repeat is allowed. Disabling the automatic monitor invalidates pending target-selection work; it cannot revoke a browser operation already dispatched.
+
+## Grok Adapter
+
+`src/adapters/grok.ts` targets only the HTTPS host `grok.com`. It finds a visible editor under `form[data-composer="true"] [data-testid="chat-input"]`. Its attachment scope is the whole composer form because Grok places the hidden file input outside the editor's query bar.
+
+The adapter tries the captured `File` through that form's file input, then synthetic paste/drop if no mutation has occurred. It stops on an unconfirmed mutation, does not use the later system clipboard contents, and does not click upload-menu or send buttons. The sanitized fixture under `tests/fixtures` represents the public composer observed on 2026-10-27; signed-in upload acceptance requires separate browser validation.
+
 ## Engineering Boundaries
 
 - Do not broaden host permissions without a specific target-site need.

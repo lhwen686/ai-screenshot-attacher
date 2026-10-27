@@ -1,12 +1,14 @@
 # Store Asset Validation
 
+0.2.0 content status: the existing screenshots depict the earlier four-target UI. Passing dimension checks does not make these assets ready for a five-target store release. Refresh screenshots after live Grok acceptance.
+
 Validation command:
 
 ```bash
 node scripts/validate-store-assets.mjs
 ```
 
-Latest result, run on 2026-07-10:
+Latest dimension validation result, run on 2026-10-27:
 
 ```text
 OK store-assets/chrome-web-store/icon-128.png 128x128 expected 128x128

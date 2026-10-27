@@ -22,6 +22,7 @@ body:
         - Claude
         - Gemini
         - Doubao
+        - Grok
         - Popup/options
         - Other
     validations:

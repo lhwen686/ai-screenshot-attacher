@@ -4,6 +4,14 @@ All notable project changes should be recorded here.
 
 ## Unreleased
 
+- Added Grok (`grok.com`) as a target in adapters, popup, settings, commands, and automatic routing, with a scoped composer fixture and regression coverage. Signed-in upload acceptance is pending.
+- Coalesced overlapping manual triggers for the same captured image and target while allowing a deliberate repeat after completion.
+- Invalidated automatic deliveries still awaiting target selection when the monitor stops.
+- Pointed the extension's privacy link to the repository policy because the GitHub Pages URL returns 404.
+- Updated Vite, undici, and zod to resolve the dependency advisories found during the 2026-10-27 audit.
+- Made the Chrome 109 build target explicit and replaced deprecated single-bundle build options.
+- Added target/manifest consistency tests and CI checks for package resources, public assets, and dependency advisories. Prepared version 0.2.0 without publishing a release.
+
 - Automatic mode now checks the clipboard about once per second (previously 1.5 s). Unchanged clipboard contents are compared by raw bytes and are no longer re-converted, re-encoded, or re-hashed on every poll.
 - Automatic mode no longer treats a browser re-encoded copy of an image the extension wrote back to the clipboard as a new screenshot.
 - Gemini upload detection compares status-text match counts instead of slicing by previous text length, and a Gemini menu the extension opened is dismissed when it offers no upload input.

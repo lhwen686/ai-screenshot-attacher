@@ -15,7 +15,7 @@ Validation command:
 node scripts/validate-public-site.mjs
 ```
 
-Latest local validation result, run on 2026-07-10:
+Latest local validation result, run on 2026-10-27:
 
 ```text
 OK docs/index.html english
@@ -41,3 +41,9 @@ OK docs/faq/index.html no-analytics
 ```
 
 No analytics scripts are included. If analytics are added later, they must be opt-in and disclosed on the privacy page.
+
+## Hosted URL Check
+
+On 2026-10-27, HTTP HEAD requests following redirects returned `404` for all four public URLs above. Local file validation is PASS; hosted publication is FAIL and remains a store-submission blocker. No GitHub Pages settings were changed.
+
+The extension's privacy button now opens `https://github.com/lhwen686/ai-screenshot-attacher/blob/main/PRIVACY.md` so users can read the policy before the website is published.
