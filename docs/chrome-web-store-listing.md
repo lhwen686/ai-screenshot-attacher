@@ -7,8 +7,8 @@ This kit follows the Developer Dashboard tabs. Paste each block into the matchin
 ## 0. 提交前 / Before submitting
 
 - [ ] 注册开发者账号：一次性 5 美元注册费，并开启两步验证（只能由你本人在 https://chrome.google.com/webstore/devconsole 完成）。
-- [ ] 把 0.2.0 分支合并进 `main`：公开网站和隐私政策从 `main:/docs` 发布，合并前页面上仍是四个目标。
-- [ ] 完成 [审计文档](audit-2026-10-27.md) 里剩下的已登录检查（Grok 的自动模式、重复触发、未登录失败）。
+- [x] 把 0.2.0 分支合并进 `main`（2026-10-27）：公开网站和隐私政策从 `main:/docs` 发布，现在列出五个目标。
+- [x] 完成 [审计文档](audit-2026-10-27.md) 里的已登录检查（2026-10-27）：Grok 验收清单全部项目，以及 Gemini、ChatGPT 各一次附加。
 - [ ] 运行 `npm run verify`、`npm run package`、`node scripts/validate-store-assets.mjs`、`node scripts/validate-public-site.mjs`，全部通过。
 - [ ] 上传 `release/ai-screenshot-attacher-v0.2.0.zip`。
 

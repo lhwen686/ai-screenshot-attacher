@@ -1,11 +1,11 @@
 # Microsoft Edge Add-ons Submission Packet
 
-Status: 0.2.0 candidate; blocked on finishing signed-in acceptance.
+Status: 0.2.0 ready to submit; no open blockers.
 
-## Submission Blockers
+## Before Submitting
 
-- BLOCKER: Signed-in acceptance passed for Grok (popup button and default shortcut), Gemini, and ChatGPT (re-tested after the composer-scope fix). Run the remaining Grok items (automatic mode, repeated trigger, signed-out failure) before submitting. See `docs/audit-2026-10-27.md`.
-- Merge the 0.2.0 branch into `main` first: the public website and privacy policy are published from `main:/docs`.
+- Signed-in acceptance is complete: the full Grok checklist, plus one attachment each on Gemini and ChatGPT (re-tested after the composer-scope fix), on 2026-10-27. See `docs/audit-2026-10-27.md`.
+- 0.2.0 is merged into `main`, which publishes the public website and privacy policy from `main:/docs`.
 
 ## Package
 
@@ -36,7 +36,7 @@ Use the descriptions from `docs/chrome-web-store-listing.md` (English listing an
 - Website URL: `https://lhw686.me/ai-screenshot-attacher/`
 - Support contact: `https://lhw686.me/ai-screenshot-attacher/support/`
 
-Reachability status as of 2026-10-27: all four public URLs return `200` over HTTPS. GitHub Pages publishes `main:/docs`, so merge the 0.2.0 branch before submitting; until then the site lists four targets.
+Reachability status as of 2026-10-27: all four public URLs return `200` over HTTPS. GitHub Pages publishes `main:/docs`, and since the 0.2.0 merge the site lists all five targets.
 
 ## Notes for Certification
 
