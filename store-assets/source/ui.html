@@ -25,31 +25,38 @@
       await document.fonts.ready;
       await new Promise((resolve) => setTimeout(resolve, 150));
 
-      // Regions let render.js point callouts at parts of the real UI.
+      // Regions let the renderers point callouts at parts of the real UI. They are relative to the captured element.
       const regionSelectors = {
         defaultTarget: '.default-target',
         autoStatus: '.auto-status',
         primary: '.primary-button',
         quick: '.quick-grid',
+        quickClaude: '.quick-grid .quick-button:nth-child(2)',
         result: '.result-panel',
-        autoToggle: '.settings-section .toggle-row'
+        autoToggle: '.settings-section .toggle-row',
+        autoToggleInput: '.settings-section .toggle-row input'
       };
+      // clip=<selector> captures one element (with transparent corners) instead of the whole page; scale sets the pixel ratio.
+      const clip = params.get('clip');
+      const pixelRatio = Number(params.get('scale')) || 2;
       window.captureUi = async () => {
-        const width = document.body.scrollWidth;
-        const height = document.body.scrollHeight;
+        const target = (clip && document.querySelector(clip)) || document.body;
+        const box = target === document.body ? { left: 0, top: 0 } : target.getBoundingClientRect();
+        const width = target === document.body ? document.body.scrollWidth : Math.ceil(box.width);
+        const height = target === document.body ? document.body.scrollHeight : Math.ceil(box.height);
         const regions = {};
         for (const [name, selector] of Object.entries(regionSelectors)) {
           const element = document.querySelector(selector);
           if (element) {
             const rect = element.getBoundingClientRect();
-            regions[name] = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+            regions[name] = { x: rect.left - box.left, y: rect.top - box.top, width: rect.width, height: rect.height };
           }
         }
-        const src = await toPng(document.body, {
-          pixelRatio: 2,
+        const src = await toPng(target, {
+          pixelRatio,
           width,
           height,
-          backgroundColor: '#f7f8fb',
+          backgroundColor: target === document.body ? '#f7f8fb' : undefined,
           skipFonts: true
         });
         return { src, width, height, regions };

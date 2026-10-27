@@ -11,11 +11,14 @@ The Chrome Web Store images in `../chrome-web-store/en/` and `../chrome-web-stor
    - Asset ids: `overview`, `popup`, `auto`, `shortcuts`, `privacy`, `small-promo`, `marquee`.
 3. Run `node scripts/validate-store-assets.mjs`.
 
+The promo videos in `../video/` use captures of the same UI. To refresh them, open `http://localhost:5179/store-assets/source/video-layers.html` on the same server and wait for "Saved 8 layers", then render the videos as described in `../video/README.md`.
+
 ## Files
 
 - `render.html`, `render.js`, `render.css`: the layout and English/Chinese copy of each image.
-- `ui.html`, `chrome-stub.js`: render the real popup or settings page with demo data and a stand-in for the extension APIs.
+- `ui.html`, `chrome-stub.js`: render the real popup or settings page with demo data and a stand-in for the extension APIs. `ui-capture.js` loads `ui.html` in a hidden frame and returns its capture.
+- `video-layers.html`, `video-layers.js`: capture the popup and settings section at three times their size for the promo videos.
 - `no-paint.js`: lets captures finish in a tab that is not on screen.
-- `vite.config.mjs`: the render server. Its `/__save` endpoint writes 24-bit RGB PNGs without an alpha channel, which the store requires for screenshots and promo tiles.
+- `vite.config.mjs`: the render server. Its `/__save` endpoint writes 24-bit RGB PNGs without an alpha channel, which the store requires for screenshots and promo tiles; `/__save-video` writes the video's UI captures and their layout data.
 
 The store icon (`../chrome-web-store/icon-128.png`) is a copy of `public/icons/icon-128.png`; `source-gpt-image-2-icon.png` is its original artwork.

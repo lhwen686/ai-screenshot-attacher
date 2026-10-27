@@ -24,14 +24,17 @@ export async function installChromeStub(params) {
     openInNewTab: true,
     debugLogs: false
   };
-  const lastResult = {
-    ok: true,
-    targetId: resultTarget,
-    targetName: getMessage(TARGET_KEYS[resultTarget]),
-    message: getMessage('attachSuccess'),
-    trigger: params.get('trigger') === 'auto' ? 'auto' : 'manual',
-    at: new Date().toISOString()
-  };
+  const lastResult =
+    params.get('result') === 'none'
+      ? undefined
+      : {
+          ok: true,
+          targetId: resultTarget,
+          targetName: getMessage(TARGET_KEYS[resultTarget]),
+          message: getMessage('attachSuccess'),
+          trigger: params.get('trigger') === 'auto' ? 'auto' : 'manual',
+          at: new Date().toISOString()
+        };
   const autoStatus = autoOn
     ? { enabled: true, active: true, targetCount: 1, message: getMessage('autoMonitorRunning') }
     : { enabled: false, active: false, targetCount: 0, message: getMessage('autoMonitorDisabled') };

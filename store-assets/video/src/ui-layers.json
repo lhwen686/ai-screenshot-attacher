@@ -1,0 +1,250 @@
+{
+  "popup-before-en": {
+    "file": "ui/popup-before-en.png",
+    "width": 360,
+    "height": 735,
+    "regions": {
+      "defaultTarget": {
+        "x": 18,
+        "y": 138.78,
+        "width": 324,
+        "height": 42
+      },
+      "autoStatus": {
+        "x": 18,
+        "y": 194.78,
+        "width": 324,
+        "height": 83.8
+      },
+      "primary": {
+        "x": 18,
+        "y": 292.58,
+        "width": 324,
+        "height": 42
+      },
+      "quick": {
+        "x": 18,
+        "y": 348.58,
+        "width": 324,
+        "height": 242
+      },
+      "quickClaude": {
+        "x": 18,
+        "y": 398.58,
+        "width": 324,
+        "height": 42
+      },
+      "result": {
+        "x": 18,
+        "y": 604.58,
+        "width": 324,
+        "height": 76
+      }
+    }
+  },
+  "popup-after-en": {
+    "file": "ui/popup-after-en.png",
+    "width": 360,
+    "height": 762,
+    "regions": {
+      "defaultTarget": {
+        "x": 18,
+        "y": 138.78,
+        "width": 324,
+        "height": 42
+      },
+      "autoStatus": {
+        "x": 18,
+        "y": 194.78,
+        "width": 324,
+        "height": 83.8
+      },
+      "primary": {
+        "x": 18,
+        "y": 292.58,
+        "width": 324,
+        "height": 42
+      },
+      "quick": {
+        "x": 18,
+        "y": 348.58,
+        "width": 324,
+        "height": 242
+      },
+      "quickClaude": {
+        "x": 18,
+        "y": 398.58,
+        "width": 324,
+        "height": 42
+      },
+      "result": {
+        "x": 18,
+        "y": 604.58,
+        "width": 324,
+        "height": 103.69
+      }
+    }
+  },
+  "settings-off-en": {
+    "file": "ui/settings-off-en.png",
+    "width": 568,
+    "height": 379,
+    "regions": {
+      "autoToggle": {
+        "x": 1,
+        "y": 1,
+        "width": 566,
+        "height": 58
+      },
+      "autoToggleInput": {
+        "x": 509,
+        "y": 17.5,
+        "width": 42,
+        "height": 24
+      }
+    }
+  },
+  "settings-on-en": {
+    "file": "ui/settings-on-en.png",
+    "width": 568,
+    "height": 379,
+    "regions": {
+      "autoToggle": {
+        "x": 1,
+        "y": 1,
+        "width": 566,
+        "height": 58
+      },
+      "autoToggleInput": {
+        "x": 509,
+        "y": 17.5,
+        "width": 42,
+        "height": 24
+      }
+    }
+  },
+  "popup-before-zh_CN": {
+    "file": "ui/popup-before-zh_CN.png",
+    "width": 360,
+    "height": 693,
+    "regions": {
+      "defaultTarget": {
+        "x": 18,
+        "y": 97.39,
+        "width": 324,
+        "height": 42
+      },
+      "autoStatus": {
+        "x": 18,
+        "y": 153.39,
+        "width": 324,
+        "height": 83.8
+      },
+      "primary": {
+        "x": 18,
+        "y": 251.19,
+        "width": 324,
+        "height": 42
+      },
+      "quick": {
+        "x": 18,
+        "y": 307.19,
+        "width": 324,
+        "height": 242
+      },
+      "quickClaude": {
+        "x": 18,
+        "y": 357.19,
+        "width": 324,
+        "height": 42
+      },
+      "result": {
+        "x": 18,
+        "y": 563.19,
+        "width": 324,
+        "height": 76
+      }
+    }
+  },
+  "popup-after-zh_CN": {
+    "file": "ui/popup-after-zh_CN.png",
+    "width": 360,
+    "height": 702,
+    "regions": {
+      "defaultTarget": {
+        "x": 18,
+        "y": 97.39,
+        "width": 324,
+        "height": 42
+      },
+      "autoStatus": {
+        "x": 18,
+        "y": 153.39,
+        "width": 324,
+        "height": 83.8
+      },
+      "primary": {
+        "x": 18,
+        "y": 251.19,
+        "width": 324,
+        "height": 42
+      },
+      "quick": {
+        "x": 18,
+        "y": 307.19,
+        "width": 324,
+        "height": 242
+      },
+      "quickClaude": {
+        "x": 18,
+        "y": 357.19,
+        "width": 324,
+        "height": 42
+      },
+      "result": {
+        "x": 18,
+        "y": 563.19,
+        "width": 324,
+        "height": 84.84
+      }
+    }
+  },
+  "settings-off-zh_CN": {
+    "file": "ui/settings-off-zh_CN.png",
+    "width": 568,
+    "height": 379,
+    "regions": {
+      "autoToggle": {
+        "x": 1,
+        "y": 1,
+        "width": 566,
+        "height": 58
+      },
+      "autoToggleInput": {
+        "x": 509,
+        "y": 17.5,
+        "width": 42,
+        "height": 24
+      }
+    }
+  },
+  "settings-on-zh_CN": {
+    "file": "ui/settings-on-zh_CN.png",
+    "width": 568,
+    "height": 379,
+    "regions": {
+      "autoToggle": {
+        "x": 1,
+        "y": 1,
+        "width": 566,
+        "height": 58
+      },
+      "autoToggleInput": {
+        "x": 509,
+        "y": 17.5,
+        "width": 42,
+        "height": 24
+      }
+    }
+  }
+}

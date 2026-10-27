@@ -1,0 +1,33 @@
+{
+  "name": "ai-screenshot-attacher-promo-video",
+  "version": "1.0.0",
+  "description": "Promo videos for AI Screenshot Attacher, rendered with Remotion",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "typecheck": "tsc",
+    "render": "node render.mjs"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.539",
+    "@remotion/transitions": "4.0.539",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.539"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "zod": "4.6.7"
+  },
+  "allowScripts": {
+    "esbuild": false
+  }
+}
